@@ -1,0 +1,259 @@
+{
+  "format": 1,
+  "sourceRevision": "75c0bc987bf056813b7da0f800b3b596b4d76be2",
+  "sourceDirty": [],
+  "mappingHash": "010ee008c2a15e5b1f90288e874bb01021eb87e9ef7f35ce0f3b3ee978a42893",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "e04bc0095f4629ae92433d4c3511764b51b50d388b1f599853dc5633e9e204fc",
+      "bytes": 439
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "30c5f2f110519293ba25adfb5c2dfd96167eaf5e4c8b38100d1d8edfad42e9f6",
+      "bytes": 1844
+    },
+    {
+      "path": "README.md",
+      "sha256": "1e5a8398e57aaf5aa9f20c4a6c6f578764cfd1deb7a12ca5added87416496548",
+      "bytes": 15096
+    },
+    {
+      "path": "TESTING.md",
+      "sha256": "06817f31ddf6a2ae2ddfe30c5ddc621a0d07c2fbcbd8ae04bdfb3134d468fee4",
+      "bytes": 6651
+    },
+    {
+      "path": "apply.py",
+      "sha256": "0a5c664980462e377ebfe4f90093f28b70ffd9e2c36f03d4fce8b6d298b59885",
+      "bytes": 23561
+    },
+    {
+      "path": "apps-script/Code.gs",
+      "sha256": "f521f40a7aabc558821e6ab81d8afef8b8b8e7635eaf3e09b41521328680f1d0",
+      "bytes": 18686
+    },
+    {
+      "path": "apps-script/Page.html",
+      "sha256": "13d2be4de95d256b4c7bb0149f5100bd96d5910fe334b677641b163a07418bd2",
+      "bytes": 4544
+    },
+    {
+      "path": "apps-script/appsscript.json",
+      "sha256": "6e74975fb081df2b9dc29653f3f6b6cd3e86f86a0378786641726ad77d1e510e",
+      "bytes": 178
+    },
+    {
+      "path": "assess.py",
+      "sha256": "2541e0ed0d1d3c344ce58bf03b27ca2e7f30893a52cc0ebc1b528dbeaf097adb",
+      "bytes": 27212
+    },
+    {
+      "path": "assets/fonts/LICENSE",
+      "sha256": "f32df582a2aab128c07b2f7e36e7b928dc5f6bd82657b905c04f91459f9e5cf9",
+      "bytes": 5756
+    },
+    {
+      "path": "assets/fonts/LiberationSans-Bold.ttf",
+      "sha256": "b72c65e551d653b54217ffad0d1454ce0657e4e8d4a28bcc79e0acd2598f4bf3",
+      "bytes": 414568
+    },
+    {
+      "path": "assets/fonts/LiberationSans-Italic.ttf",
+      "sha256": "4ccb79043bd3a6d131b5a53901abb21261b1417f6052b38a9fa9716a4e5a3d81",
+      "bytes": 415920
+    },
+    {
+      "path": "assets/fonts/LiberationSans-Regular.ttf",
+      "sha256": "075e71be4c58beda172ecb574a799308f04c3d054c6a5b7434954d3b0f1b28d8",
+      "bytes": 410820
+    },
+    {
+      "path": "ats_check.py",
+      "sha256": "40a13f42dd7c2631a219e1ca551835bce8655afedc691091b57a22e89124a240",
+      "bytes": 14445
+    },
+    {
+      "path": "ats_rules.yaml",
+      "sha256": "2186afcdfc81b310c4165ae8b465818ad86122adbe6e65863bbb63d90ac23baf",
+      "bytes": 5332
+    },
+    {
+      "path": "board.html",
+      "sha256": "696ea85d3cba97e18db7d7e11bf01dd58448369c48228a9bfee874d2bc9e1851",
+      "bytes": 35152
+    },
+    {
+      "path": "board.py",
+      "sha256": "2375659ff7b230a52d6e94fa62597fb5c0e624aa49510b454ea0b9342a5eb7b0",
+      "bytes": 24005
+    },
+    {
+      "path": "board_sheet.py",
+      "sha256": "7caaff2b19a94bd72cad64a094d5cd552f7b81679220b14405b5e1fc8b192401",
+      "bytes": 22670
+    },
+    {
+      "path": "brief.py",
+      "sha256": "75e782409d8663db787ee4d9a44e887c120b332e4c38df7dd758858a475b5fc8",
+      "bytes": 7976
+    },
+    {
+      "path": "check.mjs",
+      "sha256": "569b2fc398e25e461e8c6d68785c7de24d9d41aebb0efe2af900c147717e2671",
+      "bytes": 3082
+    },
+    {
+      "path": "config.example.yaml",
+      "sha256": "fe439583553a8ed7c60d0880654b86367e68f24df4d960522f2001cd9a198d6f",
+      "bytes": 12604
+    },
+    {
+      "path": "contracts/rolegenie/board-sheet.ts",
+      "sha256": "e6ee7b13eec4128b7b1b9b3b414c8cdb43fa165355950ffb80b72a7805db1a4c",
+      "bytes": 9795
+    },
+    {
+      "path": "contracts/rolegenie/domain.ts",
+      "sha256": "9425f1aba1697902c8a9d9ce061b1ebfc6a6b353613dcf02edc0d08d30e925bb",
+      "bytes": 52361
+    },
+    {
+      "path": "export-tests.json",
+      "sha256": "756b32027e3c9c0ae20644f8cdd92af55c06ed5b34840fb6ebd263cfe30d37c1",
+      "bytes": 845
+    },
+    {
+      "path": "first_run_check.py",
+      "sha256": "bb34197d2c5ced3733d466b1d6ff3dac8e19fcfe600906a7db29d1e337b838b8",
+      "bytes": 7467
+    },
+    {
+      "path": "hydrate_fetch.py",
+      "sha256": "50247caa4797452c588657e0792cfc474d2c6d7d150aabb9a5256f405080aa68",
+      "bytes": 4138
+    },
+    {
+      "path": "jev_core.py",
+      "sha256": "3cf9eb81fdcdd45e004789e247f9c1f148cc6147cdede7365f108810f71eacfc",
+      "bytes": 3038
+    },
+    {
+      "path": "jev_scoring.py",
+      "sha256": "ddc0a5b93287123639a009ca372643e9cbde7623e881f6c62792f7227b989ca6",
+      "bytes": 4714
+    },
+    {
+      "path": "learning.py",
+      "sha256": "c528a3ad7737c14013a4002f55ef3859528282f8727cddc3fb9782b0b3473997",
+      "bytes": 30696
+    },
+    {
+      "path": "onboard.py",
+      "sha256": "63e5744f3462755daed7e0e5ab46b5ef905dec026c0dce0f4886550f53af529c",
+      "bytes": 15197
+    },
+    {
+      "path": "outcomes.py",
+      "sha256": "2a54429a32a2ac7f437e854b53da5f0b8afde883ccee8aec9e6b740509123d24",
+      "bytes": 25218
+    },
+    {
+      "path": "prompts/apply_v1.md",
+      "sha256": "a67e865b7e9f455275f07bd3ca4832699967771d82a0d5273820f6814dbcecd1",
+      "bytes": 2400
+    },
+    {
+      "path": "prompts/consolidate_v1.md",
+      "sha256": "e080afa8f49f2ce195f9ca70acb2b2ca4ba22707c7e72869618b9ae80e154f4c",
+      "bytes": 2910
+    },
+    {
+      "path": "prompts/tailor_v4.md",
+      "sha256": "7d0473aac2e3adfc237a1c655401c22a0684581e247ebb09a94f073db126a989",
+      "bytes": 12086
+    },
+    {
+      "path": "requirements-dev.txt",
+      "sha256": "0a999c7ecdb9cabdfddc73eb9d29efc2568603ca5086093447fc267e911c0b47",
+      "bytes": 139
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "7ee01cdda82524aca10db12dad0ecc2ffc49b7d22729205aa48f350469d063e2",
+      "bytes": 340
+    },
+    {
+      "path": "rolegenie.py",
+      "sha256": "8eea454f03121ea9747607a99ee7094c2ae99dd735d06e6b79684f627c6090f9",
+      "bytes": 136512
+    },
+    {
+      "path": "scorers/__init__.py",
+      "sha256": "3e3d845e499f2c694b8d0723e6544ad36abbcc8c4fe7cda662067518bec3c7f7",
+      "bytes": 11425
+    },
+    {
+      "path": "scorers/local.py",
+      "sha256": "fe7c5b0aa353f2c0d710400d56d39a8025020a507827e085e99ce56bf36dd20d",
+      "bytes": 9126
+    },
+    {
+      "path": "tailor.py",
+      "sha256": "ae2672e58cea7755b0fc2c85a45201a9ca8e774c55124cbe94b47576db044214",
+      "bytes": 49938
+    },
+    {
+      "path": "tests/conftest.py",
+      "sha256": "dd1e5aa6ed1194031d2a1992979ae889367d24a6d731b9f0cebcac3e72ec27a2",
+      "bytes": 1670
+    },
+    {
+      "path": "tests/contract/board-sheet-apps-script.test.mjs",
+      "sha256": "bf3733095da8ca7c612ee1ad6f11d20dae8bcd9d4aeb1644e7cc371776998622",
+      "bytes": 23610
+    },
+    {
+      "path": "tests/fixtures/board/contract-cases.json",
+      "sha256": "041252fb8c8d13cb52deca263087f5cbd6b5488ae06140f9d9a6b7292d19435b",
+      "bytes": 6941
+    },
+    {
+      "path": "tests/fixtures/board/gas-fake.mjs",
+      "sha256": "952340fb90f734ba68f1a05c2957c0b7da6bbd37d00d83fcec09a9314380f2bc",
+      "bytes": 5270
+    },
+    {
+      "path": "tests/test_apply.py",
+      "sha256": "0676e06eb313b4c551a27dde31d2588d8f7c81a6e962120b2c9779b77b4b2900",
+      "bytes": 8781
+    },
+    {
+      "path": "tests/test_board.py",
+      "sha256": "ee9adbeeed87a65b038532e68b6a70c36f8fd6958d177e38022c158d8768497f",
+      "bytes": 5307
+    },
+    {
+      "path": "tests/test_daily_workflow.py",
+      "sha256": "bba2b2b1c14de93ab0f5de90b6f5df004ed360849c8281371a39c5664c72060d",
+      "bytes": 35847
+    },
+    {
+      "path": "tests/test_first_run_check.py",
+      "sha256": "f47b59024fa4a61e3f9c4c7810eacca25d957d89a8993592eab1619d9b90d0e8",
+      "bytes": 7373
+    },
+    {
+      "path": "tests/test_run.py",
+      "sha256": "074e6ee41bc51f16d442f514f740ac1dac95ec5ef7c6447ad7432ff63e632a4c",
+      "bytes": 5145
+    },
+    {
+      "path": "trust.py",
+      "sha256": "c1b609462e8590593f4c1c4dc13c8578ef3ba15d276bfeccb5c2e873c5b14878",
+      "bytes": 3637
+    }
+  ],
+  "payloadHash": "7845007b333c4e51a29dccd3d0317721fce3b4f4b6f318d287b360b44e9d1d9d"
+}

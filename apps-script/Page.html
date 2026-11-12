@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top" />
+    <style>
+      * {
+        box-sizing: border-box;
+        overflow-wrap: anywhere;
+      }
+      body {
+        margin: 0;
+        padding: 8px;
+        font:
+          16px/1.4 system-ui,
+          sans-serif;
+        color: #1a1a1a;
+        background: #f4f4f4;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 4px 0 12px;
+      }
+      .job {
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 0 0 12px;
+      }
+      .job h2 {
+        font-size: 17px;
+        margin: 0 0 4px;
+      }
+      .job h3 {
+        font-size: 14px;
+        margin: 10px 0 2px;
+      }
+      .meta,
+      .decided,
+      .status {
+        margin: 0 0 4px;
+        font-size: 14px;
+      }
+      .decided {
+        font-weight: 600;
+      }
+      .unmet h3 {
+        color: #a00;
+      }
+      ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .none {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+      }
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      button {
+        min-height: 44px;
+        padding: 8px 12px;
+        font-size: 15px;
+        border: 1px solid #888;
+        border-radius: 6px;
+        background: #fafafa;
+      }
+      button.picked {
+        background: #1a1a1a;
+        color: #fff;
+      }
+      textarea {
+        width: 100%;
+        margin-top: 8px;
+        font: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>RoleGenie board</h1>
+    <main id="board" data-s="<!--SECRET-->"><!--JOBS--></main>
+    <script>
+      // Tap a decision, give a reason (required for Apply and Reject), Save. Apply only records your decision.
+      var board = document.getElementById('board');
+      var LABEL = {
+        apply: 'Apply',
+        consider: 'Consider',
+        reject: 'Reject',
+        'applied-externally': 'Already applied',
+      };
+      board.addEventListener('click', function (ev) {
+        var b = ev.target.closest('button');
+        if (!b) return;
+        var card = b.closest('.job');
+        var status = card.querySelector('.status');
+        var box = card.querySelector('.decide');
+        var text = box.querySelector('textarea');
+        if (b.dataset.d) {
+          card.dataset.pick = b.dataset.d;
+          card.querySelectorAll('button[data-d]').forEach(function (x) {
+            x.classList.toggle('picked', x === b);
+          });
+          var needed = b.dataset.d === 'apply' || b.dataset.d === 'reject';
+          text.placeholder = needed ? 'Reason (required)' : 'Reason (optional)';
+          box.hidden = false;
+          status.textContent = '';
+          text.focus();
+          return;
+        }
+        if (!b.classList.contains('save') || !card.dataset.pick) return;
+        var d = card.dataset.pick;
+        var reason = text.value.trim();
+        if ((d === 'apply' || d === 'reject') && !reason) {
+          status.textContent = 'A reason is required for ' + LABEL[d] + '.';
+          return;
+        }
+        // One request id per deliberate tap: reused only when the same decision and reason are saved again after a
+        // failed save (so the server never records it twice); a changed pick or reason is a new tap.
+        var sig = d + '|' + reason;
+        if (card.dataset.sig !== sig) {
+          card.dataset.sig = sig;
+          card.dataset.rid =
+            Date.now().toString(36) +
+            '-' +
+            Math.random().toString(36).slice(2) +
+            Math.random().toString(36).slice(2);
+        }
+        status.textContent = 'Saving...';
+        google.script.run
+          .withSuccessHandler(function (res) {
+            status.textContent =
+              res && res.ok
+                ? 'Saved: ' + LABEL[d]
+                : 'Not saved: ' + (res ? res.error : 'no answer');
+            if (res && res.ok) {
+              box.hidden = true;
+              delete card.dataset.sig;
+              delete card.dataset.rid;
+            }
+          })
+          .withFailureHandler(function (err) {
+            status.textContent = 'Not saved: ' + (err && err.message ? err.message : 'error');
+          })
+          .pageDecide(
+            JSON.stringify({
+              secret: board.dataset.s,
+              uid: card.dataset.uid,
+              decision: d,
+              reason: reason,
+              requestId: card.dataset.rid,
+            }),
+          );
+      });
+    </script>
+  </body>
+</html>

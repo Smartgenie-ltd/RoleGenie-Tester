@@ -1,0 +1,351 @@
+{
+  "columns": [
+    "uid",
+    "title",
+    "company",
+    "url",
+    "score100",
+    "unmetHard",
+    "confirmedGaps",
+    "missingEvidence",
+    "uncertain",
+    "assessedAt",
+    "decision",
+    "reason",
+    "decidedAt",
+    "cvStatus",
+    "docLink",
+    "docNote"
+  ],
+  "decisions": ["apply", "consider", "reject", "applied-externally"],
+  "decisionProblems": [
+    {
+      "d": {
+        "uid": "u1",
+        "decision": "apply",
+        "reason": "strong match"
+      },
+      "problems": []
+    },
+    {
+      "d": {
+        "uid": "u1",
+        "decision": "reject",
+        "reason": "on-site 5 days"
+      },
+      "problems": []
+    },
+    {
+      "d": {
+        "uid": "u1",
+        "decision": "consider",
+        "reason": ""
+      },
+      "problems": []
+    },
+    {
+      "d": {
+        "uid": "u1",
+        "decision": "applied-externally",
+        "reason": ""
+      },
+      "problems": []
+    },
+    {
+      "d": {
+        "uid": "u1",
+        "decision": "apply",
+        "reason": ""
+      },
+      "problems": ["apply needs a reason"]
+    },
+    {
+      "d": {
+        "uid": "u1",
+        "decision": "reject",
+        "reason": "   "
+      },
+      "problems": ["reject needs a reason"]
+    },
+    {
+      "d": {
+        "uid": "",
+        "decision": "consider",
+        "reason": ""
+      },
+      "problems": ["decision needs a job uid"]
+    },
+    {
+      "d": {
+        "uid": "u1",
+        "decision": "archive",
+        "reason": "x"
+      },
+      "problems": ["unknown decision 'archive'"]
+    },
+    {
+      "d": {
+        "uid": "u1",
+        "decision": "maybe",
+        "reason": ""
+      },
+      "problems": ["unknown decision 'maybe'"]
+    }
+  ],
+  "eventColumns": ["eventId", "requestId", "uid", "decision", "reason", "decidedAt", "source"],
+  "eventProblems": [
+    {
+      "e": {
+        "eventId": "ev-1",
+        "requestId": "r1",
+        "uid": "u1",
+        "decision": "apply",
+        "reason": "ok",
+        "decidedAt": "2026-11-05T10:00:00.000Z",
+        "source": "tap"
+      },
+      "problems": []
+    },
+    {
+      "e": {
+        "eventId": "ev-1",
+        "requestId": "",
+        "uid": "u1",
+        "decision": "consider",
+        "reason": "",
+        "decidedAt": "2026-11-05T10:00:00.000Z",
+        "source": "legacy-snapshot"
+      },
+      "problems": []
+    },
+    {
+      "e": {
+        "eventId": "",
+        "requestId": "r1",
+        "uid": "u1",
+        "decision": "apply",
+        "reason": "ok",
+        "decidedAt": "2026-11-05T10:00:00.000Z",
+        "source": "tap"
+      },
+      "problems": ["event needs an eventId"]
+    },
+    {
+      "e": {
+        "eventId": "ev-1",
+        "requestId": "r1",
+        "uid": "u1",
+        "decision": "apply",
+        "reason": "ok",
+        "decidedAt": " ",
+        "source": "tap"
+      },
+      "problems": ["event needs a decidedAt"]
+    },
+    {
+      "e": {
+        "eventId": "ev-1",
+        "requestId": "r1",
+        "uid": "u1",
+        "decision": "apply",
+        "reason": "ok",
+        "decidedAt": "2026-11-05T10:00:00.000Z",
+        "source": "hand"
+      },
+      "problems": ["unknown event source 'hand'"]
+    },
+    {
+      "e": {
+        "eventId": "ev-1",
+        "requestId": "r1",
+        "uid": "u1",
+        "decision": "apply",
+        "reason": "",
+        "decidedAt": "2026-11-05T10:00:00.000Z",
+        "source": "tap"
+      },
+      "problems": ["apply needs a reason"]
+    },
+    {
+      "e": {
+        "eventId": "ev-1",
+        "requestId": "r1",
+        "uid": "",
+        "decision": "maybe",
+        "reason": "ok",
+        "decidedAt": "2026-11-05T10:00:00.000Z",
+        "source": "tap"
+      },
+      "problems": ["decision needs a job uid", "unknown decision 'maybe'"]
+    }
+  ],
+  "docColumns": ["cvStatus", "docLink", "docNote"],
+  "docProblems": [
+    {
+      "d": {
+        "cvStatus": "",
+        "docLink": "",
+        "docNote": ""
+      },
+      "problems": []
+    },
+    {
+      "d": {
+        "cvStatus": "draft",
+        "docLink": "",
+        "docNote": ""
+      },
+      "problems": []
+    },
+    {
+      "d": {
+        "cvStatus": "draft",
+        "docLink": "https://drive.example/d/1",
+        "docNote": ""
+      },
+      "problems": []
+    },
+    {
+      "d": {
+        "cvStatus": "held",
+        "docLink": "",
+        "docNote": "access: not shared yet"
+      },
+      "problems": []
+    },
+    {
+      "d": {
+        "cvStatus": "held",
+        "docLink": "",
+        "docNote": ""
+      },
+      "problems": ["held needs a docNote"]
+    },
+    {
+      "d": {
+        "cvStatus": "draft",
+        "docLink": "http://x.example/d",
+        "docNote": ""
+      },
+      "problems": ["docLink must be an https link"]
+    },
+    {
+      "d": {
+        "cvStatus": "draft",
+        "docLink": "javascript:alert(1)",
+        "docNote": ""
+      },
+      "problems": ["docLink must be an https link"]
+    },
+    {
+      "d": {
+        "cvStatus": "",
+        "docLink": "https://x.example/d",
+        "docNote": ""
+      },
+      "problems": ["docLink needs a cvStatus"]
+    },
+    {
+      "d": {
+        "cvStatus": "final",
+        "docLink": "",
+        "docNote": ""
+      },
+      "problems": ["unknown cvStatus 'final'"]
+    }
+  ],
+  "identity": [
+    {
+      "links": {
+        "version": 1,
+        "links": {
+          "url:a": "p1",
+          "url:b": "p2"
+        },
+        "ambiguous": {}
+      },
+      "boardUid": "url:a",
+      "known": ["p1", "p2"],
+      "want": {
+        "kind": "resolved",
+        "postingUid": "p1"
+      }
+    },
+    {
+      "links": {
+        "version": 1,
+        "links": {
+          "url:a": "p1"
+        },
+        "ambiguous": {}
+      },
+      "boardUid": "url:zzz",
+      "known": ["p1"],
+      "want": {
+        "kind": "held",
+        "reason": "unknown"
+      }
+    },
+    {
+      "links": null,
+      "boardUid": "url:a",
+      "known": ["p1"],
+      "want": {
+        "kind": "held",
+        "reason": "unknown"
+      }
+    },
+    {
+      "links": {
+        "version": 1,
+        "links": {},
+        "ambiguous": {
+          "url:a": ["p1", "p2"]
+        }
+      },
+      "boardUid": "url:a",
+      "known": ["p1", "p2"],
+      "want": {
+        "kind": "held",
+        "reason": "ambiguous"
+      }
+    },
+    {
+      "links": {
+        "version": 1,
+        "links": {
+          "url:a": "p1",
+          "url:b": "p1"
+        },
+        "ambiguous": {}
+      },
+      "boardUid": "url:b",
+      "known": ["p1"],
+      "want": {
+        "kind": "held",
+        "reason": "ambiguous"
+      }
+    },
+    {
+      "links": {
+        "version": 1,
+        "links": {
+          "url:a": "p1"
+        },
+        "ambiguous": {}
+      },
+      "boardUid": "url:a",
+      "known": ["p9"],
+      "want": {
+        "kind": "held",
+        "reason": "unknown"
+      }
+    }
+  ],
+  "stateDecision": {
+    "apply": "apply",
+    "consider": "consider",
+    "reject": "reject",
+    "applied-externally": "applied"
+  }
+}

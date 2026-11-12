@@ -1,0 +1,7 @@
+requests>=2.32
+PyYAML>=6.0
+python-docx>=1.1
+pypdf>=4.0
+fpdf2>=2.8
+playwright>=1.47    # CR-rg-hydrate-fetch: headless browser to fetch full adverts past Cloudflare; after install run: playwright install chromium
+typesafe-sdk==0.7.4    # CR-rg-platform-baseline: the Jev SDK (jev_scoring.py, outcomes.py, eval/jev_*), in use since BRIEF-007

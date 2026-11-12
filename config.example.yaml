@@ -1,0 +1,339 @@
+# RoleGenie configuration: EXAMPLE (tracked). Your own copy lives in your data
+# directory ($ROLEGENIE_HOME, else ~/.rolegenie) as config.yaml; the first run
+# copies this file there. Edit that copy, never this one.
+
+# ---------------------------------------------------------------------------
+# Boards
+# ---------------------------------------------------------------------------
+# provider: ashby | greenhouse | lever | workday
+# token:    the org slug used by that ATS, except for workday, where it is the
+#           full careers URL copied from the browser
+#
+# Verify a token by opening the endpoint in a browser:
+#   ashby      https://api.ashbyhq.com/posting-api/job-board/<token>
+#   greenhouse https://boards-api.greenhouse.io/v1/boards/<token>/jobs?content=true
+#   lever      https://api.lever.co/v0/postings/<token>?mode=json
+#   workday    not browsable; the list endpoint is a POST. Check with:
+#              curl -X POST -H 'Content-Type: application/json' \
+#                -d '{"appliedFacets":{},"limit":1,"offset":0,"searchText":""}' \
+#                https://<tenant>.wd5.myworkdayjobs.com/wday/cxs/<tenant>/<Site>/jobs
+#
+# If a board returns 404 the org has moved ATS or renamed its slug. RoleGenie
+# reports this per source rather than failing the whole run.
+
+# Start empty: add the boards of the employers you want to watch. Each entry needs
+# a name (any label you like), a provider and a token. One example per provider,
+# with a made-up company. To add one: delete the `[]` after `boards:`, uncomment
+# an example (remove the leading `#` only) and replace its name and token.
+boards: []
+#  - name: Example Company
+#    provider: ashby
+#    token: example-company
+#
+#  - name: Example Company
+#    provider: greenhouse
+#    token: example-company
+#
+#  - name: Example Company
+#    provider: lever
+#    token: example-company
+#
+#  # Workday: the token is the full careers URL. `countries:` is filtered by the
+#  # board itself. Use it for a large employer: the list endpoint caps the count it
+#  # reports, so an unfiltered read can silently return an arbitrary slice, and a
+#  # multi-site posting arrives with its location collapsed to "3 Locations", which
+#  # has to be resolved one request at a time. Filtering first keeps both small.
+#  - name: Example Company
+#    provider: workday
+#    token: https://example-company.wd5.myworkdayjobs.com/ExampleCareerSite
+#    countries:
+#      - United Kingdom
+#
+#  # Adzuna job-search API (a search across many employers, not one board). Uncomment,
+#  # put your keys in .env (ADZUNA_APP_ID, ADZUNA_APP_KEY) and add your own search
+#  # phrases. token is the country code. Free tier: 250 calls a day; this is at most
+#  # `pages` calls per phrase.
+#  - name: Adzuna
+#    provider: adzuna
+#    token: gb
+#    max_days_old: 7
+#    pages: 2
+#    queries:
+#      - your job title
+#      - another phrase you search for
+
+# ---------------------------------------------------------------------------
+# Matching
+# ---------------------------------------------------------------------------
+# A posting is a candidate if it matches location AND (title_include OR
+# body_include), and does not match title_exclude. Case insensitive throughout.
+# Matching is mechanical. Claude is not asked whether something matches; it is
+# only asked to rank what already matched.
+
+# Replace the places below with your own region. They are a worked example for
+# the UK; the notes explain the pitfalls that apply to any region.
+location_include:
+  # No bare "uk" here. Matching is substring based, so a two letter term hits
+  # inside ordinary words and drags in every office on the planet.
+  - london
+  - united kingdom
+  - ', uk'
+  - '(uk)'
+  - emea
+  - england
+  - remote - united kingdom
+  # UK-wide: UK nations, regions and the main UK
+  # cities, as bare names because company boards often give just "Manchester".
+  # Some share a name with small towns elsewhere (Manchester NH, Birmingham AL,
+  # Glasgow KY); those few false matches only cost a scoring call, and the scorer
+  # sees the real location. Not bare "cambridge" (Cambridge, MA is an AI hub):
+  # cambridgeshire instead. ", wales", not "wales", so New South Wales does not
+  # match. tests/test_location_config.py holds the cases.
+  - remote - uk
+  - uk remote
+  - remote uk
+  - great britain
+  - ', gb'
+  - '(gb)'
+  - scotland
+  - ', wales'
+  - northern ireland
+  - greater manchester
+  - yorkshire
+  - west midlands
+  - east midlands
+  - merseyside
+  - tyne and wear
+  - berkshire
+  - cambridgeshire
+  - manchester
+  - birmingham
+  - bristol
+  - leeds
+  - liverpool
+  - sheffield
+  - newcastle upon tyne
+  - nottingham
+  - reading
+  - oxford
+  - edinburgh
+  - glasgow
+  - aberdeen
+  - cardiff
+  - swansea
+  - belfast
+
+# Used instead of location_include when a posting states no location and the
+# advert text is read: only phrases that do not occur as ordinary words.
+location_body_include:
+  - london
+  - united kingdom
+  - england
+  - scotland
+  - northern ireland
+  - great britain
+  - ', uk'
+  - '(uk)'
+  - remote - uk
+  - remote - united kingdom
+  - uk remote
+  - ', wales'
+
+# A wider area: matched as a candidate, but kept only when the scorer finds the
+# role is a contract AND can be done remotely. Replace with your own, or use [].
+europe_include:
+  - europe
+  - ireland
+  - dublin
+  - france
+  - paris
+  - germany
+  - berlin
+  - munich
+  - netherlands
+  - amsterdam
+  - belgium
+  - brussels
+  - luxembourg
+  - switzerland
+  - zurich
+  - geneva
+  - spain
+  - madrid
+  - barcelona
+  - portugal
+  - lisbon
+  - italy
+  - milan
+  - austria
+  - vienna
+  - sweden
+  - stockholm
+  - denmark
+  - copenhagen
+  - norway
+  - oslo
+  - finland
+  - helsinki
+  - poland
+  - warsaw
+  - czech
+  - prague
+  - estonia
+  - greece
+
+# Titles that define the kind of role you want. Replace these examples with your
+# own. Keep them broad; precision comes from the exclude lists and the scoring
+# pass.
+title_include:
+  - example job title
+  - another job title
+
+# Phrases in the advert text that show a match even when the title is unusual
+# (employers name the same job in different ways). Replace with your own.
+body_include:
+  - a phrase that describes the work you want
+
+# Disqualify regardless of anything else in the title. Replace or extend.
+title_exclude_always:
+  - intern
+  - internship
+  - apprentice
+
+# Disqualify only when the title does not already name the kind of role you
+# want. These catch postings pulled in by common words in the advert text.
+# Replace with your own.
+title_exclude:
+  - a job title you do not want
+
+# ---------------------------------------------------------------------------
+# Scoring
+# ---------------------------------------------------------------------------
+# Only new postings are scored, so cost stays near zero on a normal day.
+scoring:
+  enabled: true
+  scorer: claude # which entry below scores new postings
+  # One command line per CLI. Each is signed in with its own subscription, or
+  # runs locally; no API keys. The prompt is sent on stdin, or in place of a
+  # "{prompt}" argument for a CLI that only accepts it that way. The reply must
+  # contain {"score": <1-10>, "verdict": "..."}; text around it is ignored.
+  # Calling conventions:
+  #   claude  --safe-mode keeps the operator's CLAUDE.md, plugins, hooks out
+  #   codex   read-only sandbox; --ignore-rules skips AGENTS.md for reproducibility
+  #   agy     prompt must be the LAST argument; --mode plan is non-executing;
+  #           never pass --effort (it is part of the model id, and a mismatch
+  #           fails at once)
+  scorers:
+    claude:
+      [claude, -p, --safe-mode, --tools, '', --no-session-persistence, --model, claude-sonnet-5]
+    codex:
+      [
+        codex,
+        exec,
+        -m,
+        gpt-5.6-sol,
+        -s,
+        read-only,
+        --skip-git-repo-check,
+        --ignore-rules,
+        --ephemeral,
+        '-',
+      ]
+    agy: [agy, --model, gemini-3.8-flash-high, --mode, plan, -p, '{prompt}']
+    qwen: [ollama, run, qwen3:8b, --think=false, --hidethinking, --nowordwrap]
+  max_new_per_run: 60 # hard cap on new postings scored in one run
+  min_score_to_report: 4 # 1 to 10; below this the role is logged but not surfaced
+
+# ---------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------
+output:
+  # Relative paths are inside your data directory; an absolute path is used as given.
+  digest_dir: digests # one markdown file per run
+  state_file: state.json # append-only record of every posting ever seen
+  email:
+    enabled: false # set true and populate SMTP_* env vars to enable
+    to: you@example.com
+    subject_prefix: '[RoleGenie]'
+
+# Local review board (board.py; arch.md §10 D1). Listens only on this PC; to
+# reach it from a phone over Tailscale, add this PC's Tailscale address to
+# listen and its address and host names to allowed_hosts, e.g.
+#   listen: [127.0.0.1, 100.x.y.z]
+#   allowed_hosts: [127.0.0.1, localhost, 100.x.y.z, my-pc, my-pc.my-tailnet.ts.net]
+board:
+  port: 8765
+  listen: [127.0.0.1]
+  allowed_hosts: [127.0.0.1, localhost]
+
+# Tailored CV per posting (tailor.py; arch.md §7). Drafted with the scorer CLI
+# above, checked against the master, written to jobs_dir/<Company>-<Role>/.
+tailor:
+  master: path/to/your/master_cv.docx # e.g. C:/Users/you/Documents/Jobs/master_cv.docx
+  jobs_dir: path/to/your/jobs_folder # tailored CVs land in <jobs_dir>/<Company>-<Role>/
+  min_score: 4 # roles scored before interview ceilings existed: Apply and Consider bands get a CV
+  min_ceiling: 50 # otherwise a CV only when the interview ceiling is 50% or more
+  # Tools you know but have not delivered with recently: listed plainly as a
+  # capability, never as delivered work. e.g. knowledge_only: ["a tool you know"]
+  knowledge_only: []
+  max_per_run: 10 # each draft is one model call of a minute or two
+  # Official verification links for certifications: the CV renders
+  # a cert name as a clickable link when EVERY token in `match` appears in it
+  # (case-insensitive). Only VERIFIED credentials here - never an unverified badge.
+  # Add a line when a new credential is earned; no code change needed.
+  cert_links: []
+  #   - match: ["cloud", "architect"]          # every token must appear in the cert name
+  #     url: "https://example.com/verify/<your-credential-id>"
+
+# Job-advert decomposition. Your standing priority for a requirement, kept
+# separate from the advert's own importance. Used only to order the review pane
+# and the driver checklist - it changes no score. A keyword found in the
+# requirement text wins over the per-kind default; otherwise the kind default
+# applies; otherwise 'med'. The values below are examples: change them to yours.
+decompose:
+  # Decomposition is a separate call from scoring: Python splits the advert into
+  # segments, and this model only classifies each segment by index. Use a name
+  # from scoring.scorers above. Falls back to the scoring scorer if not on PATH.
+  scorer: codex
+  owner_priority:
+    kind:
+      tech: low
+      qualification: low
+      soft: low
+      competency: high
+      domain: med
+      location: high
+      onsite-pattern: high
+      clearance: high
+      right-to-work: high
+    keyword:
+      a skill you care about: high
+      a duty you want: high
+      a tool you would rather not use: low
+
+# Daily brief (brief.py). Emailed through your Gmail connector when send
+# is true, and shown at the top of the board.
+brief:
+  send: false
+  to: you@example.com
+  board_url: http://127.0.0.1:8765/
+
+# Applying (apply.py; arch.md §9, D2 option a). An Apply tap on the board starts
+# the applier; the 07:00 run verifies submissions from confirmation emails.
+apply:
+  enabled: false # you switch this on
+  company_limits: {} # e.g. "Example Company": [3, 30] when a company publishes its own
+
+# Optional copy of your data directory to a backup or cloud folder after each run
+# that changed your state. Uses rclone (https://rclone.org), `rclone copy` only:
+# it never deletes anything at the remote. A missing or failing rclone is a
+# warning, never a failed run. Leave commented out to switch it off.
+# sync:
+#   remote: gdrive:RoleGenie          # any rclone remote:path, or a plain folder path
+
+# Daily workflow (README "run the daily workflow"). Recruiter-reply review is off until you turn it on:
+# the daily run reads recent replies through your Claude account's Gmail connector (read-only) and queues proposals
+# for you to confirm (`rolegenie.py mail review`). Nothing is changed without your confirmation.
+mail:
+  enabled: false
+  days: 14

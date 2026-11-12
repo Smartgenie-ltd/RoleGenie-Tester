@@ -1,0 +1,24 @@
+{
+  "python": [
+    "tests/test_apply.py",
+    "tests/test_board.py",
+    "tests/test_daily_workflow.py",
+    "tests/test_first_run_check.py",
+    "tests/test_run.py"
+  ],
+  "node": ["tests/contract/board-sheet-apps-script.test.mjs"],
+  "deselect": [
+    {
+      "id": "tests/test_apply.py::test_unreadable_applier_output_is_a_failure_never_a_submission",
+      "reason": "capability excluded from the tester edition (R3)"
+    },
+    {
+      "id": "tests/test_daily_workflow.py::test_legacy_flow_without_a_master_is_unchanged",
+      "reason": "capability excluded from the tester edition (R3)"
+    },
+    {
+      "id": "tests/test_daily_workflow.py::test_inventory_lists_every_reachable_product_module_prompt_and_asset",
+      "reason": "reads audit material excluded from the export; property enforced by the export closure check"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+# RoleGenie product checks, on Linux and Windows. Shipped in the tester snapshot as .github/workflows/ci.yml.
+# Keyless: no secrets, no model, Jev, Google or Adzuna call. It runs the snapshot's own check (check.mjs).
+# A workflow file is not a hosted pass: it is evidence only once it has actually run.
+name: product-ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # bash on both systems (Git Bash on Windows), run as `bash --noprofile --norc -eo pipefail`,
+        # so a failing check is never hidden by the pipe to tee.
+        shell: bash
+    steps:
+      # Keep LF line endings on Windows: check.mjs compares every file with its sha256 in export-manifest.json.
+      - run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        id: py
+        with:
+          python-version: '3.12'
+      - name: Install Python packages (product and test)
+        env:
+          PY: ${{ steps.py.outputs.python-path }}
+        run: '"$PY" -m pip install -r requirements-dev.txt'
+      # Node is needed only by the checks (check.mjs and the Apps Script test); RoleGenie itself never runs Node.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Product checks
+        env:
+          PY: ${{ steps.py.outputs.python-path }}
+        run: |
+          node check.mjs --python "$PY" | tee "$RUNNER_TEMP/check.log"
+          if grep -qE 'passed-with-skip|SKIPPED' "$RUNNER_TEMP/check.log"; then
+            echo "A check was skipped: this is not a pass." >&2
+            exit 1
+          fi

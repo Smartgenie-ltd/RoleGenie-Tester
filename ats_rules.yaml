@@ -1,0 +1,156 @@
+# ATS parseability ruleset (CR-rg-ats-check).
+#
+# This file is DATA, not code. It is meant to be edited freely by a parallel
+# ATS-alignment research effort without touching the engine (ats_check.py):
+# turn rules on/off, change a severity, adjust thresholds, extend the heading
+# synonym map. A genuinely new KIND of check needs a new primitive in the engine
+# (see ats_check.CHECKS) plus a rule here; everything else is a config edit.
+#
+# Each rule:
+#   id       stable identifier, shown in the report
+#   check    the engine primitive it runs (must exist in ats_check.CHECKS)
+#   severity blocker (do-not-send; known to drop/garble content) | warning
+#   target   which artifact it reads: docx | pdf | cv (informational)
+#   enabled  false to skip it
+#   why      one line: the parse failure it prevents, with source
+#   params   per-check tunables
+#
+# Sources: Jobscan, Workable, techinterview.org, atsverification.com, enhancv,
+# jobshinobi, SCU Career Center, lido.app. See docs/design/ats-rules.md.
+
+rules:
+  # --- structural blockers (our generator already satisfies these; kept as
+  #     regression guards so a future template change cannot regress them) ---
+  - id: no-tables
+    check: no_tables
+    severity: blocker
+    target: docx
+    enabled: true
+    why: 'table cells extract out of reading order or are dropped (techinterview, Jobscan)'
+
+  - id: no-text-boxes
+    check: no_text_boxes
+    severity: blocker
+    target: docx
+    enabled: true
+    why: 'text-box content is extracted out of order or lost (techinterview)'
+
+  - id: no-images
+    check: no_images
+    severity: blocker
+    target: docx+pdf
+    enabled: true
+    why: 'images are never parsed; some parsers error on them (techinterview, lido)'
+
+  - id: no-header-footer-content
+    check: no_header_footer_content
+    severity: blocker
+    target: docx
+    enabled: true
+    why: 'contact info in the Word header/footer is missed or inconsistent (techinterview, Jobscan, Workable)'
+
+  - id: single-column
+    check: single_column
+    severity: blocker
+    target: docx
+    enabled: true
+    why: 'multi-column text merges into one scrambled stream - the top cause of parse errors (techinterview, Jobscan)'
+
+  - id: contact-in-body
+    check: contact_in_body
+    severity: blocker
+    target: docx+pdf
+    enabled: true
+    why: 'an email must appear in the body text, not only a header, to be extracted (Jobscan, Workable)'
+
+  # --- the live risks for our generator ---
+  - id: canonical-section-headings
+    check: canonical_section_headings
+    severity: blocker
+    target: docx
+    enabled: true
+    why: 'an unrecognised heading makes the ATS ignore or mislabel the whole section (atsverification, jobshinobi)'
+    params:
+      # lowercased heading variant -> canonical section. Canonical names
+      # (Summary, Experience, Education, Skills, Certifications, Projects,
+      # Languages) are recognised without an entry here.
+      synonyms:
+        profile: Summary
+        professional summary: Summary
+        summary of qualifications: Summary
+        work experience: Experience
+        professional experience: Experience
+        employment history: Experience
+        work history: Experience
+        core expertise: Skills
+        core competencies: Skills
+        technical skills: Skills
+        key skills: Skills
+        selected projects: Projects
+        academic background: Education
+        licenses & certifications: Certifications
+      # an unrecognised heading for any of these is the hard failure; others warn
+      # within the detail text but still fail this blocker rule.
+      core: [Experience, Education, Skills]
+
+  - id: date-format-canonical
+    check: date_format_canonical
+    severity: blocker
+    target: cv
+    enabled: true
+    why: 'an unparseable date family misreads role durations or whole dates (atsverification, hireflow)'
+
+  # --- PDF integrity: prove the text layer extracts cleanly ---
+  - id: pdf-selectable-text
+    check: pdf_selectable_text
+    severity: blocker
+    target: pdf
+    enabled: true
+    why: 'an image/scanned PDF yields no text without OCR (techinterview, lido)'
+    params:
+      min_words: 150
+
+  - id: pdf-glyph-integrity
+    check: pdf_no_bad_glyphs
+    severity: blocker
+    target: pdf
+    enabled: true
+    why: 'a broken font-to-unicode map extracts text as (cid:) tokens or replacement chars though it looks fine (techinterview)'
+
+  - id: pdf-bullet-extracts
+    check: pdf_bullet_extracts
+    severity: warning
+    target: pdf
+    enabled: true
+    why: 'bullets normally parse; a failure here signals a font-embedding problem, not a bullet choice (techinterview)'
+
+  # --- typographic warnings ---
+  - id: web-safe-font
+    check: web_safe_font
+    severity: warning
+    target: docx+pdf
+    enabled: true
+    why: 'esoteric fonts with odd glyph maps garble extraction (techinterview, Jobscan)'
+    params:
+      allowed:
+        [
+          Calibri,
+          Arial,
+          Liberation Sans,
+          Helvetica,
+          Times New Roman,
+          Garamond,
+          Georgia,
+          Cambria,
+          Verdana,
+          Tahoma,
+        ]
+
+  - id: body-font-min
+    check: body_font_min
+    severity: warning
+    target: docx
+    enabled: true
+    why: 'sub-10pt body text is flagged by scanners and risks OCR fallback (Jobscan)'
+    params:
+      min_pt: 10

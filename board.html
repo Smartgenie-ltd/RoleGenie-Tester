@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>RoleGenie Board</title>
+<style>
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#18212b; --muted:#5b6876; --line:#dde3e9;
+  --accent:#1f6f78; --accent-ink:#ffffff;
+  --apply:#1e7a4c; --apply-bg:#e3f3ea; --consider:#9a6200; --consider-bg:#fbf0db; --archive:#66727f; --archive-bg:#eceff2;
+  --reject:#8a4b4b; --warn-bg:#fdecec;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --bg:#10161c; --surface:#18212a; --ink:#e6ebf0; --muted:#98a6b3; --line:#2a3643;
+    --accent:#5fb7c0; --accent-ink:#0c1317;
+    --apply:#6fd29c; --apply-bg:#173226; --consider:#e9b45a; --consider-bg:#352914; --archive:#9aa6b2; --archive-bg:#232d37;
+    --reject:#d99a9a; --warn-bg:#3a2020;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;padding:0 16px 40px}
+.wrap{max-width:760px;margin:0 auto}
+header{position:sticky;top:0;background:var(--bg);padding:14px 0 10px;z-index:2;border-bottom:1px solid var(--line)}
+h1{font-size:20px;font-weight:600;margin:0}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.tabs{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none}
+.tabs button{flex:none;font:500 13px var(--sans);color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tabs .n{font-family:var(--mono);font-size:12px;margin-left:4px}
+h2.group{font:600 15px var(--sans);margin:18px 0 6px}
+h2.group .n{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:6px}
+main{display:grid;gap:10px;margin-top:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;position:relative}
+.extracted{position:absolute;top:12px;right:14px;font:500 11px var(--mono);color:var(--muted);letter-spacing:.02em}
+.score{grid-row:span 2;width:44px;height:44px;border-radius:8px;display:grid;place-items:center;font:700 18px var(--mono)}
+.b-apply{background:var(--apply-bg);color:var(--apply)} .b-consider{background:var(--consider-bg);color:var(--consider)} .b-archive,.b-unscored{background:var(--archive-bg);color:var(--archive)}
+.title{font-weight:600;overflow-wrap:anywhere;padding-right:80px}
+.title a{color:inherit;text-decoration:none} .title a:hover{text-decoration:underline}
+.meta{color:var(--muted);font-size:13px}
+.verdict{grid-column:1/-1;margin:6px 0 0;font-size:14px}
+.actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+.actions button{font:500 13px var(--sans);border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer;min-height:38px}
+.actions button[data-d="apply"][aria-pressed="true"]{background:var(--apply);border-color:var(--apply);color:var(--bg)}
+.actions button[data-d="consider"][aria-pressed="true"]{background:var(--consider);border-color:var(--consider);color:var(--bg)}
+.actions button[data-d="reject"][aria-pressed="true"]{background:var(--reject);border-color:var(--reject);color:var(--bg)}
+.actions button[data-d="archive"][aria-pressed="true"]{background:var(--muted);border-color:var(--muted);color:var(--bg)}
+.actions button:disabled{opacity:.5;cursor:default}
+.actions .open{margin-left:auto;color:var(--accent);font-size:13px;font-weight:500;text-decoration:none;padding:8px 4px}
+.reason{grid-column:1/-1;display:grid;gap:8px;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:500 12px var(--sans);border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:5px 10px;cursor:pointer}
+.reason textarea{font:14px var(--sans);width:100%;min-height:60px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.reason .row{display:flex;gap:6px;justify-content:flex-end}
+.reason .row button{font:500 13px var(--sans);border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
+.reason .row .go{background:var(--reject);border-color:var(--reject);color:var(--bg)}
+.marked{grid-column:1/-1;font-size:12px;color:var(--muted);margin-top:4px}
+button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.empty{color:var(--muted);text-align:center;padding:40px 12px}
+.notice{margin-top:10px;padding:10px;font-size:13px;border-radius:8px;background:var(--warn-bg)}
+#trust{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#trust .t{border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+#trust .t.dropped{border-color:var(--apply);color:var(--apply)}
+#trust button{font:500 12px var(--sans);border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:3px 10px;cursor:pointer}
+#brief{margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+#brief summary{cursor:pointer;font-weight:600;font-size:14px}
+#brief pre{white-space:pre-wrap;font:13px var(--mono);margin:10px 0 0}
+#brief.alert{border-color:var(--reject)}
+#notice{position:fixed;left:16px;right:16px;bottom:16px;max-width:728px;margin:0 auto;z-index:6}
+.card .notice{grid-column:1/-1;margin:8px 0 0}
+.chip{display:inline-block;font:500 11px var(--sans);border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:1px}
+.chip.ok{background:var(--apply-bg);color:var(--apply)} .chip.bad{background:var(--warn-bg);color:var(--reject)}
+.ats{grid-column:1/-1;margin:6px 0 2px}
+.ats ul{margin:6px 0 0;padding-left:20px;font-size:13px;display:grid;gap:3px}
+.ats li.blocker{color:var(--reject)} .ats li.warning{opacity:.75}
+.actions .review{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+#detail{position:fixed;inset:0;background:var(--bg);z-index:5;overflow:auto;padding:0 16px 40px}
+#detail[hidden]{display:none}
+.dwrap{max-width:1400px;margin:0 auto}
+.dhead{position:sticky;top:0;background:var(--bg);padding:12px 0 10px;border-bottom:1px solid var(--line);display:grid;gap:8px;z-index:1}
+.dtop{display:flex;gap:10px;align-items:center}
+.dtop h2{font-size:17px;margin:0;flex:1;overflow-wrap:anywhere}
+.back{font:500 13px var(--sans);border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
+.dtabs{display:none;gap:6px}
+.dtabs button{font:500 13px var(--sans);color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.dtabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.pane{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.pane h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cvwhen{text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted);font-size:12px}
+.jd{white-space:pre-wrap;font-size:14px}
+.cvdoc h4{margin:14px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cvdoc .hl{font-weight:600;font-size:16px}
+.cvdoc .role{font-weight:600;margin-top:8px}
+.cvdoc .role span{font-weight:400;color:var(--muted)}
+.cvdoc ul{margin:4px 0 0;padding-left:18px}
+.cvdoc li{margin:2px 0}
+.report{white-space:pre-wrap;font-size:13px;grid-column:1/-1}
+.files{display:flex;gap:10px;flex-wrap:wrap;font-size:13px}
+.files a{color:var(--accent)}
+@media (max-width:900px){
+  .panes{grid-template-columns:1fr}
+  .dtabs{display:flex}
+  .pane[data-hide="1"]{display:none}
+}
+/* CR-rg-jd-decompose: distilled requirements list */
+.reqlist{display:grid;gap:6px}
+.reqrow{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.mchip{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font:700 13px var(--sans)}
+.m-meet{background:var(--apply-bg);color:var(--apply)}
+.m-partial{background:var(--warn-bg);color:var(--ink)}
+.m-gap{background:var(--warn-bg);color:var(--reject)}
+.m-unknown{background:var(--line);color:var(--muted)}
+.reqtext{font:500 15px var(--sans);color:var(--ink)}
+.reqmeta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center}
+.reqmeta .kind{font:600 11px var(--sans);text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.reqmeta .imp{font:600 11px var(--sans);padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.reqmeta .imp-required{border-color:var(--reject);color:var(--reject)}
+.reqmeta .imp-preferred{color:var(--ink)}
+.reqmeta .src{font:500 11px var(--sans);color:var(--muted);text-decoration:underline dotted;cursor:help}
+.drivers{display:grid;gap:6px;margin-bottom:8px}
+.driver{display:flex;gap:8px;align-items:flex-start;font:400 14px var(--sans);color:var(--ink);cursor:pointer}
+.driver input{margin-top:3px}
+.driver .dtext{flex:1}
+.driver .dmatch{font:600 11px var(--sans);color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>RoleGenie board</h1>
+    <div class="sub" id="sub">Loading jobs…</div>
+    <nav class="tabs" id="kinds" aria-label="Permanent or contract roles"></nav>
+    <nav class="tabs" id="tabs" aria-label="Filter jobs"></nav>
+  </header>
+  <div id="trust" class="meta" hidden></div>
+  <details id="brief" hidden><summary id="brief-sum"></summary><pre id="brief-text"></pre></details>
+  <div id="notice" class="notice" hidden></div>
+  <main id="list"></main>
+</div>
+<section id="detail" hidden aria-label="Review a job"></section>
+<script>
+const TABS = [["review","To review"],["apply","Apply"],["consider","Consider"],["applied-externally","Already applied"],["reject","Rejected"],["archive","Archived"],["excluded","Excluded"],["expired","Expired"],["all","All"]];
+const DECISIONS = [["apply","Apply"],["consider","Consider"],["applied-externally","Already applied"],["reject","Reject"],["archive","Archive"]];
+// Earlier marks used another vocabulary; show them under the board's three calls.
+const LEGACY = {applied:"apply", shortlisted:"consider", ignored:"reject"};
+// Permanent | Contracts (CR-rg-contracts). Inside-IR35 contracts are personal roles;
+// outside-IR35 ones go through the user's own limited company and are listed first.
+const KINDS = [["permanent","Permanent"],["contracts","Contracts"]];
+const GROUPS = [["contract-outside","Outside IR35"],["contract-inside","Inside IR35"],["contract-unstated","IR35 not stated"]];
+let tab = "review", kind = "permanent", jobs = [], busy = new Set(), pick = null;
+try { tab = localStorage.getItem("rg-tab") || "review"; kind = localStorage.getItem("rg-kind") || "permanent"; } catch (e) {}
+const isContract = j => (j.category || "permanent").startsWith("contract");
+const inKind = (j, k) => k === "contracts" ? isContract(j) : !isContract(j);
+
+const callOf = j => j.decision ? (LEGACY[j.decision] || j.decision) : null;
+const inTab = (j, t) => t === "all" || (t === "expired" ? !!j.expired :
+  !j.expired && (t === "excluded" ? !!j.excluded :
+  !j.excluded && (t === "review" ? !callOf(j) : callOf(j) === t)));
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const BAND = {apply:"Apply", consider:"Consider", archive:"Archive", unscored:"Unscored"};
+
+function notice(text) { const n = document.getElementById("notice"); n.textContent = text || ""; n.hidden = !text; }
+
+function renderTabs() {
+  const kinds = document.getElementById("kinds"); kinds.replaceChildren();
+  for (const [key, label] of KINDS) {
+    const b = el("button"); b.type = "button";
+    b.setAttribute("aria-pressed", String(key === kind));
+    b.append(label, el("span", "n", String(jobs.filter(j => inKind(j, key) && inTab(j, tab)).length)));
+    b.onclick = () => { kind = key; pick = null; try { localStorage.setItem("rg-kind", kind); } catch (e) {} render(); };
+    kinds.append(b);
+  }
+  const nav = document.getElementById("tabs"); nav.replaceChildren();
+  for (const [key, label] of TABS) {
+    const b = el("button"); b.type = "button";
+    b.setAttribute("aria-pressed", String(key === tab));
+    b.append(label, el("span", "n", String(jobs.filter(j => inKind(j, kind) && inTab(j, key)).length)));
+    b.onclick = () => { tab = key; pick = null; try { localStorage.setItem("rg-tab", tab); } catch (e) {} render(); };
+    nav.append(b);
+  }
+}
+
+function render() {
+  renderTabs();
+  const list = document.getElementById("list"); list.replaceChildren();
+  document.getElementById("sub").textContent =
+    `${jobs.length} jobs · ${jobs.filter(j => !callOf(j) && !j.excluded && !j.expired).length} to review · ${jobs.filter(j => j.score != null).length} scored`;
+  const shown = jobs.filter(j => inKind(j, kind) && inTab(j, tab));
+  if (!shown.length) { list.append(el("p", "empty", tab === "review" ? "Nothing left to review." : "No jobs here yet.")); return; }
+  if (kind !== "contracts") { for (const j of shown) list.append(card(j)); return; }
+  for (const [cat, label] of GROUPS) {
+    const group = shown.filter(j => j.category === cat);
+    if (!group.length) continue;
+    const h = el("h2", "group", label); h.append(el("span", "n", String(group.length))); list.append(h);
+    for (const j of group) list.append(card(j));
+  }
+}
+
+function card(j) {
+  const c = el("article", "card");
+  // CR-rg-board-dates: when the job entered the system, top-right, UK format (DD/MM/YYYY).
+  if (j.first_seen) {
+    const d = new Date(j.first_seen);
+    if (!isNaN(d)) { const ex = el("div", "extracted", d.toLocaleDateString("en-GB")); ex.title = "Entered the board on this date"; c.append(ex); }
+  }
+  const sc = el("div", "score b-" + j.band, j.score ?? "–"); sc.setAttribute("aria-label", `Score ${j.score ?? "none"} of 10`);
+  const t = el("div", "title"); const a = el("a", null, j.title); a.href = j.url; a.target = "_blank"; a.rel = "noopener"; t.append(a);
+  // CR-rg-hydrate-gate: an excerpt held pending hydration is shown as such, not as a plain "Unscored".
+  const bandLabel = (j.band === "unscored" && j.hydrated === false) ? "Pending hydration" : BAND[j.band];
+  const m = el("div", "meta", `${bandLabel} · ${j.board} · ${j.location || "Location not given"}`);
+  const app = j.application;
+  if (app) {
+    const label = {verified:"Applied · confirmed", submitted:"Submitted · awaiting confirmation",
+                   held:"Application held", failed:"Application failed"}[app.status] || app.status;
+    m.append(el("span", "chip " + (["verified","submitted"].includes(app.status) ? "ok" : "bad"), label));
+  }
+  if (j.excluded) m.append(el("span", "chip bad", "Excluded: " + j.excluded));
+  if (j.expired) { const ex = el("span", "chip bad", "Expired" + (j.expired.at ? " " + j.expired.at.slice(0, 10) : "")); ex.title = j.expired.reason || ""; m.append(ex); }
+  if (j.ceiling != null) {
+    const ch = el("span", "chip " + (j.ceiling >= 50 ? "ok" : "bad"), `Interview ceiling ${j.ceiling}%`);
+    ch.title = (j.ceiling_gaps || []).length ? "Not evidenced: " + j.ceiling_gaps.join("; ") : "No stated requirement missing";
+    m.append(ch);
+  }
+  if (isContract(j)) {
+    const k = j.contract || {};
+    m.append(el("span", "chip", k.day_rate || "Day rate not stated"));
+    if (k.length) m.append(el("span", "chip", k.length));
+    m.append(el("span", "chip", k.ir35 ? `IR35: ${k.ir35}` : "IR35 not stated"));
+    if (j.agencies && j.agencies.length) m.append(el("span", "chip", "Also via " + j.agencies.join(", ")));
+  }
+  if (j.cv) m.append(el("span", "chip " + (j.cv.status === "drafted" ? "ok" : "bad"),
+    j.cv.status !== "drafted" ? "CV failed check" : j.cv.fresh === false ? "CV from an older master (refreshed on Apply)" : "CV ready"));
+  if (callOf(j) === "apply" && j.package) {
+    const p = j.package;
+    const label = p.status === "ready" ? (p.approved ? "Package approved" : "Package ready - review & approve") : "Package blocked";
+    m.append(el("span", "chip " + (p.status === "ready" ? "ok" : "bad"), label + (p.auto_submit === false ? " - manual submit" : "")));
+  }
+  c.append(sc, t, m);
+  if (j.verdict) c.append(el("p", "verdict", j.verdict));
+  const act = el("div", "actions"); const cur = callOf(j);
+  // CR-rg-applied-externally: "Already applied" is terminal — a closed role takes
+  // no further calls, so every decision button is locked once it is set.
+  const applied = cur === "applied-externally";
+  const rv = el("button", "review", "Review JD & CV"); rv.type = "button"; rv.onclick = () => openDetail(j);
+  act.append(rv);
+  for (const [d, label] of DECISIONS) {
+    const b = el("button", null, label); b.type = "button"; b.dataset.d = d;
+    const lastTap = (j.decisions.filter(x => (LEGACY[x.decision] || x.decision) === "apply").pop() || {}).at || "";
+    const refreshed = d === "apply" && cur === "apply" && j.cv && j.cv.fresh !== false && (j.cv.at || "") > lastTap;
+    const retry = d === "apply" && cur === "apply" && (refreshed || (app && ["held","failed"].includes(app.status)));
+    if (retry) b.textContent = refreshed ? "Apply with refreshed CV" : "Retry apply";
+    b.setAttribute("aria-pressed", String(cur === d && !retry)); b.disabled = busy.has(j.uid) || applied || (cur === d && !retry);
+    // Apply records your decision and its drivers; it no longer needs a drafted CV
+    // (the actual submission is a separate, owner-gated step). Note it when absent.
+    if (d === "apply" && !(j.cv && j.cv.status === "drafted" && j.cv.pdf))
+      b.title = "Recorded as Apply; the tailored CV is drafted separately before any submission.";
+    // Reject and Apply open the driver checklist; Consider and Already-applied are immediate.
+    b.onclick = () => (d === "reject" || d === "apply") ? openPick(j, d) : decide(j, d, "", []);
+    act.append(b);
+  }
+  const open = el("a", "open", "Open posting ↗"); open.href = j.url; open.target = "_blank"; open.rel = "noopener";
+  act.append(open); c.append(act);
+  if (pick && pick.uid === j.uid) c.append(driverBox(j));
+  if (app && ["held","failed"].includes(app.status) && app.need)
+    c.append(el("p", "notice", "What's needed: " + app.need));
+  if (j.decisions.length) {
+    const last = j.decisions[j.decisions.length - 1];
+    const trail = j.decisions.length > 1 ? " · " + j.decisions.map(d => LEGACY[d.decision] || d.decision).join(" → ") : "";
+    c.append(el("div", "marked", `Marked ${cur} ${last.at.slice(0, 10)}${last.note ? " — " + last.note : ""}${trail}`));
+  }
+  return c;
+}
+
+// Open the driver checklist for a reject or an apply. Requirements come from the
+// open detail pane when it is this posting, otherwise they are fetched (the list
+// card holds only a light decompose summary). reqs === null means still loading.
+async function openPick(j, d) {
+  pick = { uid: j.uid, decision: d, reqs: null, sha: "" };
+  if (detailData && detailData.uid === j.uid) { pick.reqs = detailData.requirements || []; pick.sha = detailData.reqs_sha || ""; }
+  refresh();
+  if (pick.reqs !== null) return;
+  try {
+    const r = await fetch("/api/job?uid=" + encodeURIComponent(j.uid));
+    const dd = await r.json();
+    if (pick && pick.uid === j.uid) { pick.reqs = (r.ok && dd.requirements) ? dd.requirements : []; pick.sha = (r.ok && dd.reqs_sha) || ""; refresh(); }
+  } catch (e) {
+    if (pick && pick.uid === j.uid) { pick.reqs = []; pick.sha = ""; refresh(); }
+  }
+}
+
+// The driver checklist, shared by Reject (blockers) and Apply (attractors). The
+// owner ticks the requirements that drove the call, plus an optional free-text
+// "other". A reject needs a reason or at least one ticked driver.
+function driverBox(j) {
+  const box = el("div", "reason");
+  const isReject = pick.decision === "reject";
+  box.append(el("div", "meta", isReject
+    ? "Why not? Tick what put you off, and/or write a reason."
+    : "What drew you in? Tick the main reasons (optional)."));
+  if (pick.reqs === null) { box.append(el("p", "meta", "Loading requirements…")); return box; }
+  const checks = [];
+  if (pick.reqs.length) {
+    const list = el("div", "drivers");
+    for (const r of pick.reqs) {
+      const lab = el("label", "driver");
+      const cb = el("input"); cb.type = "checkbox"; cb.value = r.id;
+      lab.append(cb, el("span", "dtext", r.text), el("span", "dmatch", r.match));
+      checks.push(cb); list.append(lab);
+    }
+    box.append(list);
+  }
+  const ta = el("textarea"); ta.setAttribute("aria-label", "Other reason"); ta.maxLength = 1000;
+  ta.placeholder = pick.reqs.length ? "Other (optional)" : (isReject ? "Reason (required)" : "Reason (optional)");
+  const row = el("div", "row");
+  const cancel = el("button", null, "Cancel"); cancel.type = "button"; cancel.onclick = () => { pick = null; refresh(); };
+  const go = el("button", "go", isReject ? "Reject" : "Apply"); go.type = "button";
+  const sha = pick.sha;
+  go.onclick = () => {
+    const drivers = checks.filter(c => c.checked).map(c => c.value);
+    if (isReject && !ta.value.trim() && !drivers.length) { notice("A reject needs a reason or a ticked driver."); return; }
+    decide(j, pick.decision, ta.value.trim(), drivers, sha);
+  };
+  row.append(cancel, go);
+  box.append(ta, row);
+  return box;
+}
+
+async function decide(j, decision, reason, drivers, sha) {
+  if (busy.has(j.uid)) return;
+  busy.add(j.uid); notice(""); refresh();
+  try {
+    const r = await fetch("/api/decide", {method:"POST", headers:{"Content-Type":"application/json","X-RoleGenie":"1"},
+      body: JSON.stringify({uid: j.uid, decision, reason, drivers: drivers || [], reqs_sha: sha || ""})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    j.decisions = out.decisions; j.decision = decision; pick = null;
+    if (out.started === "prepare") notice("Preparing your application package - it will appear on this card's review view shortly.");
+    if (out.started === "draft") notice("Drafting your tailored CV now (about a minute). It'll appear here with its ATS check — review it, then apply on the employer's site.");
+    if (out.started === "redraft") notice("Your master CV has changed since this CV was drafted, so it's being refreshed (about a minute). Review it, then tap Apply again.");
+  } catch (e) {
+    notice(`That didn't save: ${e.message}. Tap it again.`);
+  } finally { busy.delete(j.uid); refresh(); }
+}
+
+// ---- Review view: JD and CV side by side (tabs on a phone) ----
+let detailJob = null, detailData = null, pane = "cv";
+// Redraw whichever view is showing.
+function refresh() { if (detailJob && detailData) renderDetail(detailJob, detailData); else render(); }
+
+async function openDetail(j) {
+  detailJob = j; pick = null;
+  const box = document.getElementById("detail");
+  box.replaceChildren(el("p", "empty", "Loading…")); box.hidden = false;
+  try {
+    const r = await fetch("/api/job?uid=" + encodeURIComponent(j.uid));
+    if (!r.ok) throw new Error(r.statusText);
+    detailData = await r.json();
+    // Distilled requirements first when present; otherwise the full JD (review #5),
+    // never the CV, so a failed/empty decomposition shows the advert, not a blank.
+    pane = (detailData.requirements && detailData.requirements.length) ? "req" : "jd";
+    renderDetail(j, detailData);
+  } catch (e) { box.replaceChildren(el("p", "empty", "Couldn't load this job: " + e.message)); }
+}
+
+function closeDetail() { document.getElementById("detail").hidden = true; detailJob = detailData = null; render(); }
+document.addEventListener("keydown", e => { if (e.key === "Escape" && detailJob) closeDetail(); });
+
+function requirementsList(reqs) {
+  const wrap = el("div", "reqlist");
+  const MATCH = { meet: ["✓", "m-meet"], partial: ["~", "m-partial"], gap: ["✗", "m-gap"], unknown: ["?", "m-unknown"] };
+  const IMP = { required: "must", preferred: "nice", contextual: "ctx" };
+  for (const r of reqs) {
+    const row = el("div", "reqrow");
+    const [sym, mc] = MATCH[r.match] || MATCH.unknown;
+    const m = el("span", "mchip " + mc, sym); m.title = "fit: " + r.match;
+    const body = el("div", "reqbody");
+    body.append(el("div", "reqtext", r.text));
+    const meta = el("div", "reqmeta");
+    meta.append(el("span", "kind", r.kind));
+    meta.append(el("span", "imp imp-" + r.advertImportance, IMP[r.advertImportance] || r.advertImportance));
+    if (r.source) { const s = el("span", "src", "source"); s.title = r.source; meta.append(s); }
+    body.append(meta);
+    row.append(m, body);
+    wrap.append(row);
+  }
+  return wrap;
+}
+
+function renderDetail(j, d) {
+  const box = document.getElementById("detail"); box.replaceChildren();
+  const wrap = el("div", "dwrap"); box.append(wrap);
+  const head = el("div", "dhead"); wrap.append(head);
+  const top = el("div", "dtop");
+  const back = el("button", "back", "← Back"); back.type = "button"; back.onclick = closeDetail;
+  const sc = el("div", "score b-" + j.band, j.score ?? "–");
+  top.append(back, sc, el("h2", null, `${j.title} · ${j.board}`));
+  head.append(top);
+  const act = card(j).querySelector(".actions");   // same Apply / Consider / Reject as the list
+  act.querySelector(".review").remove();
+  head.append(act);
+  if (pick && pick.uid === j.uid) head.append(driverBox(j));
+  const reqs = d.requirements || [];
+  const tabList = [];
+  if (reqs.length) tabList.push(["req", `Requirements (${reqs.length})`]);
+  tabList.push(["jd", "Full JD"], ["cv", "Tailored CV"], ["report", "Fit report"]);
+  if (d.package) tabList.push(["package", `Package (${d.package.channel})`]);
+  const tabs = el("div", "dtabs");
+  for (const [k, label] of tabList) {
+    const b = el("button", null, label); b.type = "button"; b.setAttribute("aria-pressed", String(pane === k));
+    b.onclick = () => { pane = k; renderDetail(j, d); }; tabs.append(b);
+  }
+  head.append(tabs);
+
+  const panes = el("div", "panes"); wrap.append(panes);
+  if (reqs.length) {
+    const rqPane = el("div", "pane reqs"); rqPane.dataset.hide = pane === "req" ? "0" : "1";
+    rqPane.append(el("h3", null, "Key requirements"));
+    rqPane.append(requirementsList(reqs));
+    panes.append(rqPane);
+  }
+  const jdPane = el("div", "pane"); jdPane.dataset.hide = pane === "jd" ? "0" : "1";
+  jdPane.append(el("h3", null, "Job description"));
+  const dstatus = (d.decompose || {}).status;
+  if (!reqs.length && dstatus === "thin")
+    jdPane.append(el("p", "notice", "This advert is only a short excerpt, so it isn't broken into requirements yet — showing the full text."));
+  else if (!reqs.length && dstatus === "failed")
+    jdPane.append(el("p", "notice", "Requirements couldn't be extracted for this advert — showing the full text."));
+  jdPane.append(el("div", "jd", d.jd || "The advert text wasn't captured (the posting may have closed)."));
+  const cvPane = el("div", "pane"); cvPane.dataset.hide = pane === "cv" ? "0" : "1";
+  const s = d.cv_summary;
+  const cvH = el("h3", null, "Tailored CV");
+  if (s && s.at) { const dt = new Date(s.at); if (!isNaN(dt)) cvH.append(el("span", "cvwhen", " · drafted " + dt.toLocaleString("en-GB", {day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit"}))); }
+  cvPane.append(cvH);
+  if (s && (s.pdf || s.docx)) {
+    const files = el("div", "files");
+    if (s.pdf) { const a = el("a", null, "Open PDF ↗"); a.href = "/file?kind=pdf&uid=" + encodeURIComponent(j.uid); a.target = "_blank"; files.append(a); }
+    if (s.docx) { const a = el("a", null, "Download .docx"); a.href = "/file?kind=docx&uid=" + encodeURIComponent(j.uid); files.append(a); }
+    cvPane.append(files);
+  }
+  if (d.ats) cvPane.append(atsPanel(d.ats));
+  if (s && s.status === "failed") {
+    cvPane.append(el("p", "notice", "This draft failed the check against your master CV, so it wasn't used: " + s.problems.join("; ")));
+  }
+  cvPane.append(d.cv ? cvDoc(d.cv) : el("p", "meta", s ? "" : "No CV yet — tap Apply to draft the tailored CV for this role."));
+  panes.append(jdPane, cvPane);
+  if (d.package) {
+    const p = d.package;
+    const pkgPane = el("div", "pane"); pkgPane.dataset.hide = pane === "package" ? "0" : "1";
+    pkgPane.append(el("h3", null, "Application package"));
+    const prepared = new Date(p.prepared_at);
+    pkgPane.append(el("p", "meta", `${p.channel} · ${isNaN(prepared) ? (p.prepared_at || "") : prepared.toLocaleString("en-GB")} · ${p.questions_source || "none"}`));
+    if (p.status === "blocked") pkgPane.append(el("p", "notice", p.blocked_reason));
+    const questions = el("div", "reqlist");
+    for (const q of p.questions || []) {
+      const row = el("div");
+      const answer = q.ref && (d.answers || {})[q.ref];
+      row.append(el("div", "reqtext", q.q), el("div", "jd", answer ? `${answer.label}: ${answer.text}` : "no approved answer - the applier will hold on this question"));
+      questions.append(row);
+    }
+    pkgPane.append(questions);
+    if (p.status === "ready" && p.auto_submit && !p.approved) {
+      const actions = el("div", "actions");
+      const approve = el("button", null, "Approve & submit"); approve.type = "button"; approve.disabled = busy.has(j.uid);
+      approve.onclick = async () => {
+        if (busy.has(j.uid)) return;
+        busy.add(j.uid); approve.disabled = true; notice("");
+        try {
+          const r = await fetch("/api/approve", {method:"POST", headers:{"Content-Type":"application/json","X-RoleGenie":"1"},
+            body: JSON.stringify({uid: j.uid})});
+          const out = await r.json();
+          if (!r.ok) throw new Error(out.error || r.statusText);
+          p.approved = {at: new Date().toISOString()};
+          j.package = {status:p.status, channel:p.channel, auto_submit:p.auto_submit, prepared_at:p.prepared_at, approved:true};
+          notice(out.started === "apply" ? "Submitting now. The result will appear on this card." : "Approved. Submission runs when the apply switch is turned on (owner-only).");
+        } catch (e) { notice(`That didn't save: ${e.message}. Tap it again.`); }
+        finally { busy.delete(j.uid); refresh(); }
+      };
+      actions.append(approve); pkgPane.append(actions);
+    } else if (p.status === "ready" && p.auto_submit === false) {
+      pkgPane.append(el("p", "notice", "Manual submit: apply on the employer's site with the CV and answers above, then Mark applied-externally."));
+    }
+    panes.append(pkgPane);
+  }
+  if (d.report) {
+    const rp = el("div", "pane report"); rp.dataset.hide = pane === "report" ? "0" : "1";
+    rp.append(el("h3", null, "Fit report"), document.createTextNode(d.report));
+    panes.append(rp);
+  }
+}
+
+// ATS parseability verdict for the drafted CV (CR-rg-ats-check). Flags clearly;
+// it never blocks the download above.
+function atsPanel(ats) {
+  const box = el("div", "ats");
+  const V = {
+    clean: ["chip ok", "ATS: parses clean"],
+    warnings: ["chip", "ATS: parses, with warnings"],
+    blocked: ["chip bad", "ATS: blocked — fix before sending"],
+  };
+  const [cls, label] = V[ats.verdict] || ["chip", "ATS: " + ats.verdict];
+  box.append(el("span", cls, label));
+  const fails = (ats.findings || []).filter((f) => !f.passed);
+  if (fails.length) {
+    const ul = el("ul");
+    for (const f of fails)
+      ul.append(el("li", f.severity,
+        (f.severity === "blocker" ? "✗ " : "! ") + f.ruleId + (f.detail ? " — " + f.detail : "")));
+    box.append(ul);
+  }
+  return box;
+}
+
+function cvDoc(cv) {
+  const doc = el("div", "cvdoc");
+  doc.append(el("div", "hl", cv.headline || ""));
+  const sec = (title, node) => { doc.append(el("h4", null, title), node); };
+  sec("Profile", el("p", null, (cv.profile || []).join(" ")));
+  if ((cv.core_expertise || []).length) sec("Core expertise", el("p", null, cv.core_expertise.join(" · ")));
+  const exp = el("div");
+  for (const r of cv.experience || []) {
+    const h = el("div", "role", `${r.title}, ${r.employer} `); h.append(el("span", null, r.dates)); exp.append(h);
+    const ul = el("ul"); for (const b of r.bullets || []) ul.append(el("li", null, b)); exp.append(ul);
+  }
+  sec("Experience", exp);
+  if ((cv.selected_work || []).length) {
+    const ul = el("ul");
+    for (const w of cv.selected_work) { const li = el("li"); li.append(el("b", null, w.name + ": "), w.text); ul.append(li); }
+    sec("Selected work", ul);
+  }
+  for (const [t, k] of [["Certifications","certifications"],["Education","education"]]) {
+    if ((cv[k] || []).length) { const ul = el("ul"); for (const x of cv[k]) ul.append(el("li", null, x)); sec(t, ul); }
+  }
+  return doc;
+}
+
+async function load() {
+  try {
+    const r = await fetch("/api/jobs"); if (!r.ok) throw new Error(r.statusText);
+    jobs = (await r.json()).jobs; render();
+  } catch (e) { document.getElementById("sub").textContent = "The board can't reach RoleGenie on this PC."; }
+}
+async function loadBrief() {
+  try {
+    const r = await fetch("/api/brief"); if (!r.ok) return;
+    const b = await r.json(); if (!b.at) return;
+    const box = document.getElementById("brief");
+    const c = b.counts || {};
+    document.getElementById("brief-sum").textContent =
+      `Brief ${b.at.slice(0, 10)}: ${c.new ?? 0} new · ${c.needs ?? 0} need you · ${c.waiting ?? 0} waiting` +
+      (b.email_problems && b.email_problems.length ? " · email not sent" : "");
+    document.getElementById("brief-text").textContent = b.text +
+      (b.email_problems && b.email_problems.length ? "\nEmail problems: " + b.email_problems.join("; ") : "");
+    box.classList.toggle("alert", (c.needs ?? 0) > 0 || !!(b.email_problems && b.email_problems.length));
+    box.open = (c.needs ?? 0) > 0; box.hidden = false;
+  } catch (e) {}
+}
+async function loadTrust() {
+  try {
+    const r = await fetch("/api/trust"); if (!r.ok) return;
+    const box = document.getElementById("trust"); box.replaceChildren(el("span", null, "Trust:"));
+    for (const c of (await r.json()).checkpoints) {
+      const label = !c.measured ? `${c.checkpoint}: not measured yet`
+        : `${c.checkpoint}: ${c.streak}/${c.drop_after} in a row` + (c.state === "dropped" ? " · dropped" : "");
+      box.append(el("span", "t" + (c.state === "dropped" ? " dropped" : ""), label));
+      if (c.state === "dropped") {
+        const b = el("button", null, "Reinstate " + c.checkpoint); b.type = "button";
+        b.onclick = async () => {
+          await fetch("/api/reinstate", {method:"POST", headers:{"Content-Type":"application/json","X-RoleGenie":"1"},
+            body: JSON.stringify({checkpoint: c.checkpoint})});
+          loadTrust();
+        };
+        box.append(b);
+      }
+    }
+    box.hidden = false;
+  } catch (e) {}
+}
+load(); loadBrief(); loadTrust();
+</script>
+</body>
+</html>
