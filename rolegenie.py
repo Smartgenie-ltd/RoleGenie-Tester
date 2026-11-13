@@ -1915,7 +1915,9 @@ def build_digest(new: list[Posting], errors: list[str], cfg: dict,
     floor = cfg.get("scoring", {}).get("min_score_to_report", 0)
 
     ranked = sorted(new, key=lambda x: (x.score is None, -(x.score or 0)))
-    surfaced = [p for p in ranked if p.score is None or p.score >= floor]
+    # BRIEF-067: a posting set aside by the employment choice is counted like one below the floor.
+    surfaced = [p for p in ranked if (p.score is None or p.score >= floor)
+                and not p.excluded.startswith(EMPLOYMENT_REASON_PREFIX)]
     buried = [p for p in ranked if p not in surfaced]
 
     lines = [f"# RoleGenie digest", "", f"{now}", ""]
@@ -2248,7 +2250,32 @@ def scheduler_command(platform: str, python: str, script_dir: str, log_file: str
     if platform == "win32":
         return ('schtasks /Create /SC DAILY /ST 07:00 /TN RoleGenie /TR "\\"' + python + '\\" \\"'
                 + script_dir.rstrip("\\") + '\\rolegenie.py\\" daily"')
-    return f"0 7 * * * cd '{script_dir}' && '{python}' rolegenie.py daily"      # `daily` writes {log_file} itself
+    # cron turns a bare `%` into a newline, so it is escaped; `daily` writes {log_file} itself
+    return f"0 7 * * * cd {sh_quote(script_dir)} && {sh_quote(python)} rolegenie.py daily".replace("%", "\\%")
+
+
+def sh_quote(s: str) -> str:
+    """A POSIX sh single-quoted word: a `'` inside becomes `'\\''`."""
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+CRON_BEGIN, CRON_END, CRON_BASE_PATH = "# RoleGenie daily (begin)", "# RoleGenie daily (end)", "/usr/bin:/bin"
+
+
+def cron_block(python: str, script_dir: str, log_file: str, tool_dirs: list[str], rolegenie_home: str | None,
+               claude_found: bool) -> str:
+    """The Linux crontab block `daily --print-scheduler` prints (contracts/rolegenie/daily-workflow.ts, cronBlock).
+    Cron variable lines are literal (no quoting or expansion; values start with `/`); only the schedule line is
+    sh-quoted. Nothing is installed: the person pastes the README command (R3)."""
+    lines = [CRON_BEGIN]
+    if not claude_found:
+        lines.append("# claude was not found on PATH when this was printed: the nightly run will fail until claude is"
+                     " installed and this block is printed again")
+    lines.append("PATH=" + ":".join(dict.fromkeys([*tool_dirs, *CRON_BASE_PATH.split(":")])))
+    if rolegenie_home:
+        lines.append(f"ROLEGENIE_HOME={rolegenie_home}")
+    lines += [scheduler_command("linux", python, script_dir, log_file), CRON_END]
+    return "\n".join(lines)
 
 
 def order_by_preference(postings: list, state: dict) -> list:
@@ -2344,6 +2371,7 @@ def _step_import_decisions(cfg: dict) -> str:
 
 
 def _step_scan(cfg: dict) -> str:
+    refresh_employment_holds(cfg)        # BRIEF-070: a changed choice re-decides the stored holds first
     rc = cmd_scan(argparse.Namespace(dry_run=False, verify=False, backfill=False), cfg)
     if rc:
         raise RuntimeError(f"the scan stopped (exit {rc}); nothing was lost, it retries next run")
@@ -2445,13 +2473,16 @@ def _step_push_board(cfg: dict) -> str:
         raise StepSkipped(str(exc)) from None
     n = project_cv_status(cfg)
     rc = board_sheet.cmd_push(cfg)
+    held = board_sheet.held_count(cfg)
+    employment = str(cfg.get("employment") or "either")
     if rc:
-        raise StepSkipped("nothing to push yet: no current assessments (see the line above)")
+        raise StepSkipped(f"nothing to push: {held_text(held, employment)}" if held else
+                          "nothing to push yet: no current assessments (see the line above)")
     before = onboard.load("board-docs.json", {})
     project_cv_status(cfg)                    # push may have linked new jobs: show their status now, not next run
     if onboard.load("board-docs.json", {}) != before:
         board_sheet.cmd_push(cfg)
-    return f"{n} CV status(es) projected"
+    return f"{n} CV status(es) projected" + (f"; {held_text(held, employment)}" if held else "")
 
 
 def mail_runner(cfg: dict):
@@ -2616,6 +2647,15 @@ def cmd_daily(argv: list[str], cfg: dict) -> int:
         print(daily_status_text())
         return 0
     if args.print_scheduler:
+        if sys.platform != "win32":       # Linux: the ready crontab block (BRIEF-074); Windows output is unchanged
+            claude, node = shutil.which("claude"), shutil.which("node")
+            if not claude:
+                print("daily --print-scheduler: claude was not found on PATH, so the nightly run will fail until it "
+                      "is installed; the block is printed anyway", file=sys.stderr)
+            dirs = [os.path.dirname(p) for p in (claude, node, sys.executable) if p]    # venv bin, unresolved
+            home = os.path.abspath(str(data_dir())) if os.environ.get("ROLEGENIE_HOME") else None
+            print(cron_block(sys.executable, str(ROOT), str(data_dir() / "daily.log"), dirs, home, bool(claude)))
+            return 0
         line = scheduler_command(sys.platform, sys.executable, str(ROOT), str(data_dir() / "daily.log"))
         if os.environ.get("ROLEGENIE_HOME"):          # a non-default data folder must reach the scheduled run
             line += f"\n# this machine uses a custom data folder: the scheduled run needs ROLEGENIE_HOME={data_dir()}"
@@ -2638,6 +2678,8 @@ def cmd_daily(argv: list[str], cfg: dict) -> int:
 def main() -> int:
     if len(sys.argv) > 1 and sys.argv[1] == "migrate":   # before the config load: never pre-empted by the example
         return cmd_migrate(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == "search":    # guided search setup (BRIEF-067): reads its own config
+        return cmd_search(sys.argv[2:])
     cfg = load_config()
     before = _state_mark(cfg)
     rc = _dispatch(cfg)
@@ -2716,12 +2758,423 @@ def _dispatch(cfg: dict) -> int:
                "  board setup [URL] | board push | board pull  phone board in your Google account (README)\n"
                "  daily [--status] [--print-scheduler]        the overnight workflow in one command (README)\n"
                "  mail review | confirm PID [--uid U] | reject PID   recruiter replies proposed as outcomes\n"
+               "  search setup | search show                  choose your job search by answering questions\n"
                "  migrate [--from DIR]                        copy an in-repo install into your data directory",
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dry-run", action="store_true", help="match only; no scoring, no state write")
     ap.add_argument("--verify", action="store_true", help="check board endpoints and exit")
     ap.add_argument("--backfill", action="store_true", help="mark everything live as seen, no digest")
     return cmd_scan(ap.parse_args(), cfg)
+
+
+# ---------------------------------------------------------------------------
+# Guided search setup (BRIEF-067, CR-rg-guided-search-setup). Mirror of contracts/rolegenie/search-setup.ts.
+# `search setup` asks plain questions and rewrites only the search keys of the user's config.yaml; every other
+# top-level block stays byte-identical. `search show` reads the search back in plain words. No network.
+# ---------------------------------------------------------------------------
+
+SEARCH_KEYS = ("boards", "location_include", "location_body_include", "europe_include", "title_include",
+               "body_include", "title_exclude_always", "title_exclude", "employment")
+SEARCH_PROVIDERS = ("ashby", "greenhouse", "lever", "workday")
+EMPLOYMENT_CHOICES = ("either", "permanent", "contract")
+MIN_PLACE_LETTERS = 3
+EMPLOYMENT_REASON_PREFIX = "employment:"
+# BRIEF-070 (CR-rg-employment-daily): the posting's kind from plain wording, no model call (search-setup.ts postingKind).
+KIND_TITLE_CONTRACT = (
+    r"\bcontract(?:or)?\b(?!\s*(?:manager|management|lead|specialist|analyst|administrator|officer|negotiator))",
+    r"\bftc\b",
+    r"\bfixed[- ]term\b",
+)
+KIND_TEXT_CONTRACT = (
+    r"\b(?:day|daily) rate\b",
+    r"[£$€]\s?\d[\d,.]*k?\s*(?:per|a|/)\s*day\b",
+    r"\bfixed[- ]term (?:contract|role|position|basis)\b",
+    r"\b\d+[- ]?months?[- ](?:contract|ftc|fixed[- ]term)\b",
+    r"\bcontract (?:role|position|basis|assignment|opportunity)\b",
+    r"\b(?:inside|outside)(?: of)? ir35\b",
+)
+KIND_PERMANENT = (r"\bpermanent\b(?!\s*(?:resident|residency|residence|right|address))",)
+_TOP_KEY = re.compile(r"([A-Za-z_][A-Za-z0-9_-]*)\s*:(?:\s|$)")
+_TOKEN_HELP = {
+    "ashby": "check it opens: https://api.ashbyhq.com/posting-api/job-board/<token>",
+    "greenhouse": "check it opens: https://boards-api.greenhouse.io/v1/boards/<token>/jobs?content=true",
+    "lever": "check it opens: https://api.lever.co/v0/postings/<token>?mode=json",
+    "workday": "the token is the full careers URL copied from your browser",
+}
+
+
+class SearchAbort(Exception):
+    """End of input or Ctrl+C before the final yes: nothing is written."""
+
+
+class SearchConfigError(Exception):
+    """The config cannot be rewritten safely; the message says why in plain words."""
+
+
+def employment_reason(employment: str, category: str) -> str:
+    """Mirror of employmentReason: why a scored posting is kept off, or ''. Never touches a score (R2)."""
+    category = category or ""
+    if employment == "permanent" and category.startswith("contract"):
+        return f"{EMPLOYMENT_REASON_PREFIX} a contract role (your search: permanent only)"
+    if employment == "contract" and category == "permanent":
+        return f"{EMPLOYMENT_REASON_PREFIX} a permanent role (your search: contract only)"
+    return ""
+
+
+def posting_kind(title: str, text: str, listed_contract: bool) -> str:
+    """Mirror of postingKind: 'contract', 'permanent', or '' when unclear or mixed (always kept)."""
+    def hit(patterns: tuple, value: str) -> bool:
+        return any(re.search(pat, value or "", re.IGNORECASE) for pat in patterns)
+    contract = bool(listed_contract) or hit(KIND_TITLE_CONTRACT, title) or hit(KIND_TEXT_CONTRACT, text)
+    permanent = hit(KIND_PERMANENT, f"{title}\n{text}")
+    return "contract" if contract and not permanent else "permanent" if permanent and not contract else ""
+
+
+def hold_reason(employment: str, kind: str, has_decision: bool, added_by_person: bool) -> str:
+    """Mirror of holdReason: a decided posting or one the person added is never held (R3)."""
+    return "" if has_decision or added_by_person else employment_reason(employment, kind)
+
+
+def board_hold_reason(uid: str, entry: dict, employment: str) -> str:
+    """Why a scanned posting is held off the phone board for the CURRENT choice, or ''. Reads the saved advert."""
+    if not employment or employment == "either":
+        return ""
+    import tailor
+    jd = tailor.jd_path(uid)
+    text = jd.read_text(encoding="utf-8") if jd.exists() else ""
+    kind = posting_kind(str(entry.get("title") or ""), text, bool(entry.get("listed_contract")))
+    return hold_reason(employment, kind, bool(entry.get("decisions")),
+                       entry.get("source") == "Manual" or uid.startswith("Manual:"))
+
+
+def held_text(n: int, employment: str) -> str:
+    other = "contract" if employment == "permanent" else "permanent"
+    return (f"{n} job(s) held back from the board: clearly {other} roles, and your search is {employment} only "
+            "(rolegenie.py search setup to change it)")
+
+
+def refresh_employment_holds(cfg: dict) -> int:
+    """Daily (approved master only): re-decide every stored `employment:` exclusion for the current choice, so a changed
+    choice never leaves a job silently excluded from CV drafting. Another exclusion is never touched. Returns how many
+    entries changed."""
+    state_path = ROOT / cfg["output"]["state_file"]
+    if not approved_mode() or not state_path.exists():
+        return 0
+    employment = str(cfg.get("employment") or "either")
+    changed = 0
+
+    def change(st: dict) -> None:
+        nonlocal changed
+        for uid, e in st.items():
+            cur = str(e.get("excluded") or "")
+            if cur and not cur.startswith(EMPLOYMENT_REASON_PREFIX):
+                continue
+            new = board_hold_reason(uid, e, employment)
+            if new != cur:
+                e["excluded"] = new
+                changed += 1
+    update_state(state_path, change)
+    return changed
+
+
+def apply_employment(postings: list, cfg: dict, kind_of=lambda p: p.category) -> int:
+    """Keep the other kind off the board and the brief (legacy: by category; daily: by `posting_kind`). Never
+    overwrites another exclusion."""
+    n = 0
+    for p in postings:
+        reason = employment_reason(str(cfg.get("employment") or "either"), kind_of(p))
+        if reason and not p.excluded:
+            p.excluded = reason
+            n += 1
+    return n
+
+
+def search_titles_refusal(titles: list[str]) -> str | None:
+    return None if any(t.strip() for t in titles) else \
+        "Give at least one job title: RoleGenie needs one to know which roles you want."
+
+
+def search_place_refusal(term: str) -> str | None:
+    t = term.strip()
+    return None if len(t) >= MIN_PLACE_LETTERS else (
+        f'"{t}" is too short. Places match as part of a word, so a term under {MIN_PLACE_LETTERS} letters '
+        '(such as "uk") would match inside ordinary words and pull in jobs everywhere. Use a longer form, such as '
+        '"united kingdom" or ", uk".')
+
+
+def search_places_refusal(places: list[str]) -> str | None:
+    if not places:
+        return "Give at least one place: a job must match a place to be found."
+    return next((r for r in map(search_place_refusal, places) if r), None)
+
+
+def search_provider_refusal(provider: str) -> str | None:
+    return None if provider.strip().lower() in SEARCH_PROVIDERS else \
+        f'"{provider.strip()}" is not supported. Choose one of: {", ".join(SEARCH_PROVIDERS)}.'
+
+
+def search_employment_refusal(answer: str) -> str | None:
+    return None if answer.strip().lower() in EMPLOYMENT_CHOICES else \
+        f"Answer one of: {', '.join(EMPLOYMENT_CHOICES)}."
+
+
+def _body_places(places: list[str], old_body: list) -> list[str]:
+    """Places to look for in the advert text when a job states none: only phrases that are not ordinary words
+    (several words or punctuation), plus any single word the user already had there."""
+    old = {str(x).lower() for x in old_body or []}
+    return [p for p in places if re.search(r"[\s,()\-]", p.strip()) or p.lower() in old]
+
+
+def _search_spans(lines: list[str]) -> dict[str, tuple[int, int]]:
+    """Top-level search key -> [start, end) line span: the key line plus every following indented or column-0 `- `
+    line, up to the next column-0 key. Column-0 comments and blank lines after the block stay outside it."""
+    spans: dict[str, tuple[int, int]] = {}
+    for i, line in enumerate(lines):
+        m = _TOP_KEY.match(line.lstrip("﻿") if i == 0 else line)
+        if not m or m.group(1) not in SEARCH_KEYS:
+            continue
+        if m.group(1) in spans:
+            raise SearchConfigError(f"`{m.group(1)}` is written more than once in config.yaml; keep one, then run "
+                                    "this again.")
+        last, j = i, i + 1
+        while j < len(lines):
+            s = lines[j]
+            if s.strip() == "" or s.startswith("#"):
+                j += 1
+                continue
+            if s[0] in " \t" or s.startswith("- ") or s.rstrip("\r\n") == "-":
+                last = j
+                j += 1
+                continue
+            break
+        spans[m.group(1)] = (i, last + 1)
+    return spans
+
+
+def search_rewrite(text: str, changes: dict) -> str:
+    """The config text with only the changed search keys re-written (missing ones appended). Everything else is the
+    original text, byte for byte. Refuses when the result would not load back to exactly the intended data."""
+    old = yaml.safe_load(text) or {}
+    nl = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines(keepends=True)
+    spans = _search_spans(lines)
+
+    def dump(key: str) -> list[str]:
+        out = yaml.safe_dump({key: changes[key]}, sort_keys=False, allow_unicode=True, default_flow_style=False,
+                             width=1000)
+        return [ln + nl for ln in out.splitlines()]
+
+    for key in sorted((k for k in changes if k in spans), key=lambda k: -spans[k][0]):
+        a, b = spans[key]
+        bom = "﻿" if a == 0 and lines[0].startswith("﻿") else ""
+        new = dump(key)
+        new[0] = bom + new[0]
+        lines[a:b] = new
+    missing = [k for k in changes if k not in spans]
+    if missing:
+        if lines and not lines[-1].endswith(("\n", "\r")):
+            lines[-1] += nl
+        for key in missing:
+            if key == "employment":
+                lines.append(nl + "# Contract or permanent roles: either | permanent | contract (set by "
+                             "`rolegenie.py search setup`)." + nl)
+            lines += dump(key)
+    result = "".join(lines)
+    if (yaml.safe_load(result) or {}) != {**old, **changes}:
+        raise SearchConfigError("config.yaml has a layout this setup cannot change safely; edit it by hand.")
+    return result
+
+
+def _search_write(path: Path, data: bytes) -> None:
+    """Keep the previous file as config.yaml.bak, then write a temp file beside it and replace (atomic)."""
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".config-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        shutil.copyfile(path, path.with_name(path.name + ".bak"))
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
+def _ask(prompt: str) -> str:
+    print(prompt, end="", flush=True)
+    line = sys.stdin.readline()
+    if line == "":
+        raise SearchAbort
+    return line.rstrip("\r\n")
+
+
+def _ask_list(label: str, current: list, check=None, optional: bool = True) -> list[str]:
+    """One item per line, an empty line ends; Enter alone keeps the current list; `none` empties an optional one."""
+    shown = "; ".join(str(x) for x in current) if current else "none"
+    while True:
+        print(f"\n{label}\n  Now: {shown}")
+        first = _ask("  One per line, then an empty line. Enter alone keeps it" +
+                     (", 'none' clears it" if optional else "") + ": ").strip()
+        if first == "":
+            items = [str(x) for x in current]
+        elif optional and first.lower() == "none":
+            items = []
+        else:
+            items = [first]
+            while (nxt := _ask("  > ").strip()) != "":
+                items.append(nxt)
+        problem = check(items) if check else None
+        if not problem:
+            return items
+        print(f"  {problem}")
+
+
+def _ask_choice(label: str, current: str, refusal) -> str:
+    while True:
+        a = _ask(f"\n{label} [{current}]: ").strip().lower() or current
+        problem = refusal(a)
+        if not problem:
+            return a
+        print(f"  {problem}")
+
+
+def _ask_text(label: str) -> str:
+    while True:
+        a = _ask(f"  {label}: ").strip()
+        if a:
+            return a
+        print("  This cannot be empty.")
+
+
+def _employers(boards: list) -> list:
+    """Watched employers: add, keep or remove board entries. Adzuna entries are kept and set by their own question."""
+    boards = [dict(b) for b in boards]
+    while True:
+        own = [b for b in boards if b.get("provider") != "adzuna"]
+        print("\nEmployers you watch (their own job boards):")
+        print("\n".join(f"  {i}. {b.get('name')} ({b.get('provider')})" for i, b in enumerate(own, 1))
+              or "  none yet")
+        a = _ask("  Type a to add, r and a number to remove (e.g. r 2), or Enter when done: ").strip().lower()
+        if a == "":
+            return boards
+        if a == "a":
+            name = _ask_text("Employer name (any label you like)")
+            while True:
+                provider = _ask_text(f"Job board provider ({', '.join(SEARCH_PROVIDERS)})").lower()
+                problem = search_provider_refusal(provider)
+                if not problem:
+                    break
+                print(f"  {problem}")
+            print(f"  Token: {_TOKEN_HELP[provider]}. It is not checked now; "
+                  "`python rolegenie.py --verify` checks every board later.")
+            boards.append({"name": name, "provider": provider, "token": _ask_text("Token")})
+        elif re.fullmatch(r"r\s*\d+", a) and 1 <= int(a[1:]) <= len(own):
+            gone = own[int(a[1:]) - 1]
+            boards = [b for b in boards if b is not gone]
+        else:
+            print("  Type a, r and a number, or press Enter.")
+
+
+def search_show_text(cfg: dict, path: Path) -> str:
+    def items(key: str) -> str:
+        v = cfg.get(key) or []
+        return "; ".join(str(x) for x in v) if v else "none"
+    boards = cfg.get("boards") or []
+    own = [f"{b.get('name')} ({b.get('provider')})" for b in boards if b.get("provider") != "adzuna"]
+    adz = [str(q) for b in boards if b.get("provider") == "adzuna" for q in b.get("queries") or []]
+    out = [f"Your job search (from {path}):",
+           f"  Job titles you want: {items('title_include')}",
+           f"  Phrases in the advert that show a match: {items('body_include')}",
+           f"  Titles you never want: {items('title_exclude')}",
+           f"  Titles always refused: {items('title_exclude_always')}",
+           f"  Places: {items('location_include')}",
+           f"  Places looked for in the advert when a job states none: {items('location_body_include')}",
+           f"  Wider area, for remote contract roles only: {items('europe_include')}",
+           f"  Contract or permanent: {cfg.get('employment') or 'either'}",
+           f"  Employers watched: {'; '.join(own) if own else 'none yet'}",
+           f"  Adzuna search phrases: {'; '.join(adz) if adz else 'none'}"]
+    out += [f"Your data folder: {data_dir()}", "To change it: python rolegenie.py search setup"]
+    return "\n".join(out)
+
+
+def _search_questions(cfg: dict) -> dict:
+    new: dict = {}
+    print("Choose your job search. Each question shows what is set now; press Enter to keep it.")
+    new["title_include"] = _ask_list("1. Job titles you want (part of a title is enough, e.g. 'platform engineer').",
+                                     cfg.get("title_include") or [], search_titles_refusal, optional=False)
+    new["body_include"] = _ask_list("2. Phrases in the advert that show a match even when the title is unusual.",
+                                    cfg.get("body_include") or [])
+    new["title_exclude"] = _ask_list("3. Titles you never want (refused unless the title also names a role you want).",
+                                     cfg.get("title_exclude") or [])
+    new["title_exclude_always"] = _ask_list("   Titles always refused, whatever else the title says.",
+                                            cfg.get("title_exclude_always") or [])
+    places = _ask_list("4. Places to match (cities, regions, countries). Places match as part of a word, so use "
+                       f"{MIN_PLACE_LETTERS} letters or more: 'united kingdom' or ', uk', never a bare 'uk'.",
+                       cfg.get("location_include") or [], search_places_refusal, optional=False)
+    new["location_include"] = places
+    if places != (cfg.get("location_include") or []):
+        new["location_body_include"] = _body_places(places, cfg.get("location_body_include") or [])
+    new["europe_include"] = _ask_list("   A wider area that counts for remote contract roles ('none' for no).",
+                                      cfg.get("europe_include") or [],
+                                      lambda xs: next((r for r in map(search_place_refusal, xs) if r), None))
+    new["employment"] = _ask_choice("5. Contract, permanent or either?",
+                                    str(cfg.get("employment") or "either"), search_employment_refusal)
+    boards = _employers(cfg.get("boards") or [])
+    if _env("ADZUNA_APP_ID") and _env("ADZUNA_APP_KEY"):
+        adz = next((b for b in boards if b.get("provider") == "adzuna"), None)
+        queries = _ask_list("6. Adzuna search phrases (a search across many employers; 'none' turns it off).",
+                            (adz or {}).get("queries") or [])
+        if new["employment"] == "permanent" and queries:
+            print("  Note: the Adzuna search returns contract roles only.")
+        if adz and not queries:
+            boards = [b for b in boards if b is not adz]
+        elif adz:
+            adz["queries"] = queries
+        elif queries:
+            boards.append({"name": "Adzuna", "provider": "adzuna", "token": "gb", "max_days_old": 7, "pages": 2,
+                           "queries": queries})
+    new["boards"] = boards
+    return new
+
+
+def cmd_search(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(prog="rolegenie.py search",
+                                 description="Choose your job search by answering questions, or show it.")
+    ap.add_argument("action", choices=("setup", "show"),
+                    help="setup: answer questions to set your search; show: what the search looks for")
+    args = ap.parse_args(argv)
+    for stream in (sys.stdin, sys.stdout):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+    path = config_path()
+    try:
+        cfg = load_config(path)
+    except yaml.YAMLError as exc:
+        print(f"Your config.yaml at {path} is not valid YAML, so it cannot be read: {str(exc).splitlines()[0]}. "
+              f"Fix it, or restore config.yaml.bak beside it.")
+        return 1
+    if args.action == "show":
+        print(search_show_text(cfg, path))
+        return 0
+    try:
+        raw = path.read_bytes().decode("utf-8")
+        _search_spans(raw.splitlines(keepends=True))      # refuse a doubled key before asking anything
+        new = _search_questions(cfg)
+        changes = {k: v for k, v in new.items() if v != cfg.get(k, "either" if k == "employment" else None)}
+        print("\n" + search_show_text({**cfg, **changes}, path).replace("Your job search", "Your new search", 1))
+        if _ask("\nSave these settings? (y/n): ").strip().lower() not in ("y", "yes"):
+            print("Nothing saved.")
+            return 1
+        if changes:
+            _search_write(path, search_rewrite(raw, changes).encode("utf-8"))
+    except (SearchAbort, KeyboardInterrupt):
+        print("\nNothing saved.")
+        return 1
+    except (SearchConfigError, OSError) as exc:
+        print(f"\n{exc}\nNothing saved.")
+        return 1
+    print(f"Saved to {path} (previous copy: {path.name}.bak). The next `daily` run uses it.")
+    return 0
 
 
 def cmd_scan(args, cfg: dict) -> int:
@@ -2770,6 +3223,10 @@ def cmd_scan(args, cfg: dict) -> int:
             # BRIEF-047: assess on the approved master; the legacy card and profile are never read here.
             print("Assessing adverts against your approved master", file=sys.stderr)
             assess_postings(to_score, cfg)
+            # BRIEF-070: the kind from the source's flag and the ad's wording; never a score or an assessment (R2).
+            if off := apply_employment(to_score, cfg,
+                                       kind_of=lambda p: posting_kind(p.title, p.body, p.listed_contract)):
+                print(f"  {off} set aside: not the contract or permanent choice in your search", file=sys.stderr)
         else:
             import learning
             profile = build_profile(cfg)
@@ -2786,6 +3243,9 @@ def cmd_scan(args, cfg: dict) -> int:
                                   profile=profile):
                 print("Scoring unavailable - no digest or state written", file=sys.stderr)
                 return 1
+            # BRIEF-067: the legacy scan holds by the scorer's category.
+            if off := apply_employment(to_score, cfg):
+                print(f"  {off} set aside: not the contract or permanent choice in your search", file=sys.stderr)
 
     digest = build_digest(to_score + overflow, errors, cfg, len(state) + len(new), total_live)
 

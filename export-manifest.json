@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "sourceRevision": "75c0bc987bf056813b7da0f800b3b596b4d76be2",
+  "sourceRevision": "26922517d0a1e69aa9c2055019b7e637bd42b129",
   "sourceDirty": [],
   "mappingHash": "010ee008c2a15e5b1f90288e874bb01021eb87e9ef7f35ce0f3b3ee978a42893",
   "files": [
@@ -16,18 +16,18 @@
     },
     {
       "path": "README.md",
-      "sha256": "1e5a8398e57aaf5aa9f20c4a6c6f578764cfd1deb7a12ca5added87416496548",
-      "bytes": 15096
+      "sha256": "262584055a7bcc0a403aa12d72db76187533d29862b0ab92071eb5eedd7f2aae",
+      "bytes": 16737
     },
     {
       "path": "TESTING.md",
-      "sha256": "06817f31ddf6a2ae2ddfe30c5ddc621a0d07c2fbcbd8ae04bdfb3134d468fee4",
-      "bytes": 6651
+      "sha256": "3dee237d00558993e43c4ace1805922eb4edf446b34522d8504e995239a70270",
+      "bytes": 8495
     },
     {
       "path": "apply.py",
-      "sha256": "0a5c664980462e377ebfe4f90093f28b70ffd9e2c36f03d4fce8b6d298b59885",
-      "bytes": 23561
+      "sha256": "b3f949aa04431377ed2b70d552608529ff8f847d0cf7e48f7dc5df505b28e72e",
+      "bytes": 23781
     },
     {
       "path": "apps-script/Code.gs",
@@ -36,8 +36,8 @@
     },
     {
       "path": "apps-script/Page.html",
-      "sha256": "13d2be4de95d256b4c7bb0149f5100bd96d5910fe334b677641b163a07418bd2",
-      "bytes": 4544
+      "sha256": "e4607a904ed870dc19570312c699f71e47d73e8a3e2a296d4f89a53ed374a0ad",
+      "bytes": 7041
     },
     {
       "path": "apps-script/appsscript.json",
@@ -46,8 +46,8 @@
     },
     {
       "path": "assess.py",
-      "sha256": "2541e0ed0d1d3c344ce58bf03b27ca2e7f30893a52cc0ebc1b528dbeaf097adb",
-      "bytes": 27212
+      "sha256": "886ea40fdf05e3204ef391af77f7fcd816de0c719fb1a85f474916ded6aa0f7a",
+      "bytes": 29105
     },
     {
       "path": "assets/fonts/LICENSE",
@@ -91,13 +91,13 @@
     },
     {
       "path": "board_sheet.py",
-      "sha256": "7caaff2b19a94bd72cad64a094d5cd552f7b81679220b14405b5e1fc8b192401",
-      "bytes": 22670
+      "sha256": "767213f324e3bc7045770712f12df2113ac5ba24d45c75cee72bbd5424797a76",
+      "bytes": 23716
     },
     {
       "path": "brief.py",
-      "sha256": "75e782409d8663db787ee4d9a44e887c120b332e4c38df7dd758858a475b5fc8",
-      "bytes": 7976
+      "sha256": "ee255bef1425a2a5d3a300db1baab3480e7c5b91c48a07173aa4f6346bbe7009",
+      "bytes": 8496
     },
     {
       "path": "check.mjs",
@@ -106,8 +106,8 @@
     },
     {
       "path": "config.example.yaml",
-      "sha256": "fe439583553a8ed7c60d0880654b86367e68f24df4d960522f2001cd9a198d6f",
-      "bytes": 12604
+      "sha256": "2d7ccd91f0e63034c18901467d42e2fe98b4a2e0ea860a9952fe5bec31ce8620",
+      "bytes": 12745
     },
     {
       "path": "contracts/rolegenie/board-sheet.ts",
@@ -116,8 +116,8 @@
     },
     {
       "path": "contracts/rolegenie/domain.ts",
-      "sha256": "9425f1aba1697902c8a9d9ce061b1ebfc6a6b353613dcf02edc0d08d30e925bb",
-      "bytes": 52361
+      "sha256": "2a73d40a6f6b68a744aa69554309529853a4c04bdb2038ec63a936a08cbd4cf8",
+      "bytes": 55044
     },
     {
       "path": "export-tests.json",
@@ -126,8 +126,8 @@
     },
     {
       "path": "first_run_check.py",
-      "sha256": "bb34197d2c5ced3733d466b1d6ff3dac8e19fcfe600906a7db29d1e337b838b8",
-      "bytes": 7467
+      "sha256": "2828d1baa26184c23a8dfa29e21c344ed61da9c73ac6ac8675b7be08e4f91c71",
+      "bytes": 7464
     },
     {
       "path": "hydrate_fetch.py",
@@ -186,8 +186,8 @@
     },
     {
       "path": "rolegenie.py",
-      "sha256": "8eea454f03121ea9747607a99ee7094c2ae99dd735d06e6b79684f627c6090f9",
-      "bytes": 136512
+      "sha256": "dbc982b83e146fa315cf2a605df866b5d6e7a538f1a39978074a9b647abf00df",
+      "bytes": 159931
     },
     {
       "path": "scorers/__init__.py",
@@ -201,8 +201,8 @@
     },
     {
       "path": "tailor.py",
-      "sha256": "ae2672e58cea7755b0fc2c85a45201a9ca8e774c55124cbe94b47576db044214",
-      "bytes": 49938
+      "sha256": "691077b0c6402819ce356245389e92b139703564ac0d9979d5072973a47b5bde",
+      "bytes": 51340
     },
     {
       "path": "tests/conftest.py",
@@ -211,8 +211,8 @@
     },
     {
       "path": "tests/contract/board-sheet-apps-script.test.mjs",
-      "sha256": "bf3733095da8ca7c612ee1ad6f11d20dae8bcd9d4aeb1644e7cc371776998622",
-      "bytes": 23610
+      "sha256": "0eb8cc2c57b657c6105db4bbe73cd5d5ce78b921246d13650e25e71a29c1ef8a",
+      "bytes": 27771
     },
     {
       "path": "tests/fixtures/board/contract-cases.json",
@@ -226,8 +226,8 @@
     },
     {
       "path": "tests/test_apply.py",
-      "sha256": "0676e06eb313b4c551a27dde31d2588d8f7c81a6e962120b2c9779b77b4b2900",
-      "bytes": 8781
+      "sha256": "cc84f75f26b305b246a59bf178b9e1da0e784a5edd56c985c168bd78c87b0086",
+      "bytes": 8899
     },
     {
       "path": "tests/test_board.py",
@@ -251,9 +251,9 @@
     },
     {
       "path": "trust.py",
-      "sha256": "c1b609462e8590593f4c1c4dc13c8578ef3ba15d276bfeccb5c2e873c5b14878",
-      "bytes": 3637
+      "sha256": "eace577a79d50b758169cbfd50d9e49799268e764cfe77808704d3767f9848d0",
+      "bytes": 4845
     }
   ],
-  "payloadHash": "7845007b333c4e51a29dccd3d0317721fce3b4f4b6f318d287b360b44e9d1d9d"
+  "payloadHash": "bb7a6457dc02e6d468377730927f293690e868fb4dfc7cdece5ffa71edb36242"
 }

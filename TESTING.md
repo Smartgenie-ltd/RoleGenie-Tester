@@ -60,8 +60,10 @@ Use your own resumes and real job ads: that is the test. Tick each box as it wor
       scored: they are listed under "IN THE AD, NOT SCORED", and a stated condition also appears as uncertain.
 - [ ] Nothing claims experience you do not have.
 
-**5. Phone board** (`python rolegenie.py board setup`, `board push`, decide on your phone, `board pull`)
+**5. Phone board** (`python rolegenie.py board setup`, `board push`, decide on your phone, `board pull`). Which
+decision to make, and what each one does: [How to decide on the board](#how-to-decide-on-the-board).
 
+- [ ] The board's "How to decide" panel told me what each decision does.
 - [ ] Apply and Reject ask for a reason; Consider and Already applied do not need one.
 - [ ] Pushing again never overwrites a decision you made.
 
@@ -79,6 +81,32 @@ Use your own resumes and real job ads: that is the test. Tick each box as it wor
 - [ ] A reply RoleGenie is unsure about is shown as uncertain, not guessed.
 
 Also tell us when you get an interview, an offer or a role, if you are happy to: that is what RoleGenie is for.
+
+## How to decide on the board
+
+The same guide is in the "How to decide" panel at the top of your phone board.
+
+Choose one decision per job, then tap Save. To change it later, tap another and Save.
+
+- **Apply**: You would send an application for this job. A reason is required. RoleGenie does not apply for you: the
+  daily run then tries to draft a tailored CV from your approved master CV only, and the card shows it as a draft when it is
+  ready, or as held with the reason. Check it, apply yourself, then tap Already applied (or run
+  `python rolegenie.py mark <job> applied`).
+- **Consider**: Not sure yet. A reason is optional. The job stays on your board, below the jobs you have not decided,
+  and no CV is drafted. Decide when you are ready.
+- **Reject**: You would not apply even with a perfect CV. A reason is required, for example location, pay, seniority,
+  not the work you want, or a hard requirement you cannot meet.
+- **Already applied**: You applied, through RoleGenie's draft or on your own. A reason is optional. The daily run
+  records it as your application; only applications you mark this way are matched to recruiter replies.
+
+No decision: The job stays at the top of your board and nothing is drafted.
+
+Reading a card: Unmet hard requirements are always listed, whatever the score. A low score is not an automatic
+Reject: a stretch you can argue for is a fair Apply.
+
+Your reasons: Words in your Apply, Reject and Already applied reasons decide which new jobs RoleGenie assesses first.
+For this, only your latest decision on each job counts, and Consider teaches nothing. Your decisions and ratings never
+change the fit score on a card.
 
 ## Where your data is
 

@@ -209,16 +209,33 @@ def rows_from_assessments(state: dict | None = None) -> list[dict]:
     """One AssessmentRow per board uid (assessment.ts boardUid): company and link as recorded at `assess`, blank when
     absent (assessments written before BRIEF-029). The title and company of the posting win when the assessment names its
     posting and the scan state has it (BRIEF-048). Stale assessments are not pushed (see _is_stale)."""
-    rows, _ = _rows_and_stale(state or {})
+    rows, _, _ = _rows_and_stale(state or {})
     return rows
 
 
-def _rows_and_stale(state: dict) -> tuple[list[dict], int]:
+def _employment(cfg: dict | None) -> str:
+    return str((cfg or {}).get("employment") or "either")
+
+
+def held_count(cfg: dict | None) -> int:
+    """How many current assessments the contract-or-permanent choice holds off the board (BRIEF-070)."""
+    return _rows_and_stale(_load_state(cfg), _employment(cfg))[2]
+
+
+def _rows_and_stale(state: dict, employment: str = "either") -> tuple[list[dict], int, int]:
+    """(rows to push, stale count, held count). BRIEF-070: a scanned posting that is clearly the other kind for the
+    current choice is not pushed (rolegenie.board_hold_reason); a decided one, or one the person added, always is.
+    Nothing already on the board is removed: the board only adds or updates the rows it is sent."""
+    import rolegenie
     docs = onboard.load("board-docs.json", {})
-    rows, stale = [], 0
+    rows, stale, held = [], 0, 0
     for buid, a in _latest_assessments().items():
         if _is_stale(a):
             stale += 1
+            continue
+        puid = a.get("postingUid") or ""
+        if puid in state and rolegenie.board_hold_reason(puid, state[puid], employment):
+            held += 1
             continue
         ad, url = str(a.get("ad") or ""), str(a.get("url") or "")
         title = ("(ad from link)" if url and ad == url.strip() else
@@ -227,7 +244,7 @@ def _rows_and_stale(state: dict) -> tuple[list[dict], int]:
         rows.append({"uid": buid, "title": str(posting.get("title") or title), "company": str(a.get("company") or ""),
                      "url": url, "score100": a["score100"], **{k: _lines(a, k) for k in LISTS},
                      "assessedAt": a.get("assessedAt", ""), **_doc_fields(buid, docs)})
-    return rows, stale
+    return rows, stale, held
 
 
 STEPS = """Deploy your phone board (once, in your own Google account; the same on Windows and Linux):
@@ -271,12 +288,16 @@ def _save(cfg: dict) -> None:
 def cmd_push(cfg: dict | None = None) -> int:
     board_cfg = _config()
     state = _load_state(cfg)
-    rows, stale = _rows_and_stale(state)
+    import rolegenie
+    employment = _employment(cfg)
+    rows, stale, held = _rows_and_stale(state, employment)
+    if held:
+        print(rolegenie.held_text(held, employment) + ".")
     if not rows:
         if stale:
             print(f"{stale} assessment(s) were made against an older master and are not pushed: assess the jobs "
                   "again (`rolegenie.py assess --pending`) on your approved master.", file=sys.stderr)
-        else:
+        elif not held:
             print("No assessments yet: run `rolegenie.py assess AD_FILE` first.", file=sys.stderr)
         return 1
     res = _post(board_cfg, {"action": "push", "rows": rows})

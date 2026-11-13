@@ -114,7 +114,7 @@ def check_workflow_setup():
     d = data_dir()
     rows = [
         ((d / "config.yaml").exists(), "your search config (keywords, location) in your data folder",
-         "run `python rolegenie.py` once to create config.yaml there, then edit your keywords and location"),
+         "run `python rolegenie.py search setup` to create config.yaml there and choose your job search"),
         ((d / "master.json").exists(), "approved master CV",
          "needed before the daily run: `python rolegenie.py onboard FILE...`, then `master approve`"),
         ((d / "board.json").exists(), "phone board set up",

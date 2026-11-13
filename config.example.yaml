@@ -206,6 +206,9 @@ title_exclude_always:
 title_exclude:
   - a job title you do not want
 
+# Contract or permanent roles: either | permanent | contract. The other kind is kept off the board; scores never change.
+employment: either
+
 # ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------

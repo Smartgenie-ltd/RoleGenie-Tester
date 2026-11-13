@@ -67,6 +67,10 @@ def is_title_line(span: str, ad_text: str) -> bool:
 _QUESTION = re.compile(r"\?[\s*]*$|^\W*(are|do|will|would|can|could|have|is|what|when|how)\s+(you|your)\b", re.IGNORECASE)
 _FORM_TOPIC = re.compile(r"authori[sz]|right to work|sponsor|visa|work permit|in[- ]person|on[- ]?site|in the office|"
                          r"relocat|commut|notice period|start date|salary|compensation|pay expectation", re.IGNORECASE)
+# BRIEF-069 F1 ruling: a labelled application/screening question, or a "why do you want / why are you interested"
+# question, is a form question too (a motivation is not a capability the master can evidence, R2).
+_FORM_LABEL = re.compile(r"^\W*(application|screening)\s+questions?\s*\d*\s*[:.\-–—]\s*\S", re.IGNORECASE)
+_MOTIVATION = re.compile(r"\bwhy\s+(do|would)\s+you\s+want\b|\bwhy\s+are\s+you\s+interested\b", re.IGNORECASE)
 
 
 _CAPABILITY_WORD = re.compile(
@@ -88,7 +92,8 @@ def ad_condition_reason(span: str, kind: str) -> str | None:
     capability content is always scored."""
     if has_capability_content(span):
         return None
-    if _QUESTION.search(span.strip()) and _FORM_TOPIC.search(span):
+    if _FORM_LABEL.search(span) or (_QUESTION.search(span.strip()) and (_FORM_TOPIC.search(span)
+                                                                     or _MOTIVATION.search(span))):
         return "form-question"
     if kind == "right-to-work":
         return "constraint"
@@ -182,6 +187,12 @@ def decompose_ad(ad_text: str, cfg: dict) -> tuple[list[dict], list[str], list[s
         reqs.append({"text": sent[i], "span": sent[i], "kind": v["kind"],
                      "advertImportance": v["advert_importance"],
                      "importance": IMPORTANCE_LEVEL[v["advert_importance"]], "uncertain": v["uncertain"]})
+    # BRIEF-069: a form question is listed whatever the model returned for it (dropped, garbled, unusable reference);
+    # judged without a model kind, never scored, no extra call. A line the model got right is already in `seen`.
+    for i, s in enumerate(sent):
+        if (i not in seen and s not in {c["text"] for c in conditions} and span_verified(s, ad_text)
+                and not is_title_line(s, ad_text) and ad_condition_reason(s, "") == "form-question"):
+            conditions.append({"text": s, "span": s, "kind": None, "reason": "form-question"})
     reqs.sort(key=lambda r: sent.index(r["span"]))
     conditions.sort(key=lambda c: sent.index(c["span"]))
     for n, r in enumerate(reqs, 1):
@@ -373,8 +384,23 @@ def render(a: dict) -> str:
         out.append("IN THE AD, NOT SCORED (location, application-form questions, stated conditions; check them yourself):")
         out += [f"  [{c['reason']}] {c['text']}" for c in a["adConditions"]]
     if a["decompositionProblems"]:
-        out.append(f"Model output lines discarded: {len(a['decompositionProblems'])} (see the JSON)")
+        out.append(problem_summary(a["decompositionProblems"]))
     return "\n".join(out)
+
+
+_PROBLEM_KINDS = (("model line reference not usable", "unusable line reference"),
+                  ("classification invalid", "invalid classification"),
+                  ("is not verbatim in the ad", "not verbatim in the ad"), ("title line", "the ad's title line"))
+
+
+def problem_summary(problems: list[str]) -> str:
+    """BRIEF-069: the printed line for the model answers decompose_ad did not use: the count, why, and the JSON key."""
+    counts: dict[str, int] = {}
+    for p in problems:
+        kind = next((label for key, label in _PROBLEM_KINDS if key in p), "other")
+        counts[kind] = counts.get(kind, 0) + 1
+    why = ", ".join(f"{n} {k}" for k, n in counts.items())
+    return f'Model answers not used: {len(problems)} ({why}). Details: "decompositionProblems" in the assessment JSON.'
 
 
 def read_ad(arg: str) -> tuple[str, str]:

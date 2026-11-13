@@ -103,6 +103,17 @@ The first run creates your settings file, `config.yaml` in that folder, from `co
 never the example. If you used RoleGenie before it kept data in its own folder, move it across once with
 `python rolegenie.py migrate`.
 
+## Choose your search
+
+Answer a few questions (job titles, places, contract or permanent, employers to watch) instead of editing YAML:
+
+```bash
+python rolegenie.py search setup   # asks one question at a time; Enter keeps what is set now; saves only on y
+python rolegenie.py search show    # what the daily run will look for, in plain words
+```
+
+Hand-editing `config.yaml` still works; `search setup` keeps a copy of the previous file as `config.yaml.bak`.
+
 ## First run: your master CV and your first assessment
 
 Your resumes and one job ad give you a master CV you approve, then an assessment of that ad against it.
@@ -216,14 +227,28 @@ applied. RoleGenie never submits an application in this workflow. Review replies
 Nothing runs while your computer is off or asleep; `daily --status` says so plainly when a run was missed.
 `daily --print-scheduler` prints the exact line. The shapes are:
 
-Linux (cron), added with `crontab -e` (replace the paths; cron has a short PATH, so `claude` must be found: add its
-folder from `dirname "$(command -v claude)"` to `PATH=` in the crontab):
+Linux (cron): on Linux it prints a ready block for this machine, between `# RoleGenie daily (begin)` and
+`# RoleGenie daily (end)`. The block holds a `PATH=` line with the folders where `claude`, `node` and your `.venv`
+Python are found now (cron's own PATH is too short to find them), a `ROLEGENIE_HOME=` line if you set one, and the
+7:00 schedule line. If `claude` is not found, it says so and the block says the nightly run will fail until it is.
+Nothing is installed until you paste the command. In your RoleGenie folder, in the same terminal you use for your own
+runs (so it finds the same tools and data folder), paste this to add the block, or to replace an earlier one (your
+other crontab lines are kept):
 
 ```bash
-0 7 * * * cd '<clone path>' && '<clone path>/.venv/bin/python' rolegenie.py daily
+b="$(.venv/bin/python rolegenie.py daily --print-scheduler)" && { crontab -l 2>/dev/null | sed '/^# RoleGenie daily (begin)$/,/^# RoleGenie daily (end)$/d'; printf '%s\n' "$b"; } | crontab -
 ```
 
-The run writes its own log to `daily.log` in your data folder (no redirection needed).
+To remove it again (only the RoleGenie block goes):
+
+```bash
+crontab -l 2>/dev/null | sed '/^# RoleGenie daily (begin)$/,/^# RoleGenie daily (end)$/d' | crontab -
+```
+
+Check it with `crontab -l` (you should see the block once), then run `python rolegenie.py daily --status` the next
+morning. The run writes its own log to `daily.log` in your data folder. Keep the RoleGenie block as the last lines
+of your crontab: cron applies its `PATH=` and `ROLEGENIE_HOME=` lines to every line below them. If you edit the block
+by hand, keep both marker lines: without the end line, the remove command would delete everything below the begin line.
 
 Windows (Task Scheduler), one line in PowerShell; the log is written for you in your data folder:
 

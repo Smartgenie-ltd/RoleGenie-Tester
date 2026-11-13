@@ -10,13 +10,16 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import shutil
+import sys
 from pathlib import Path
 
 import learning
 import rolegenie
 
-ROOT = Path(__file__).resolve().parent
-LOG = ROOT / "trust.json"
+ROOT = Path(__file__).resolve().parent   # the code folder: only the OLD place of user data (CR-rg-clone-stays-clean)
+LOG: Path | None = None                  # test override; else the data folder's trust.json
+_SAID: set[str] = set()
 CHECKPOINTS = ("pick", "cv", "submit")
 DROP_AFTER = 20
 # Checkpoints that have something to measure yet. cv and submit need the
@@ -49,8 +52,27 @@ def pick_outcomes(state: dict[str, dict]) -> list[dict]:
     return out
 
 
+def home_path(name: str, write: bool = False) -> Path:
+    """`name` in the data folder. A writer moves an old in-clone copy across once (never over an existing one);
+    when both exist it keeps both, uses the data folder's and says so once. A read never moves anything: it uses
+    the data folder's copy, else the old one read-only."""
+    new, old = rolegenie.data_dir() / name, ROOT / name
+    if not old.exists():
+        return new
+    if not write:
+        return new if new.exists() else old
+    if not new.exists():
+        new.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old), str(new))
+        print(f"Moved {old} to {new} (your data lives in the data folder now)", file=sys.stderr)
+    elif str(new) not in _SAID:
+        _SAID.add(str(new))
+        print(f"Both {old} and {new} exist; using {new} and leaving {old} untouched", file=sys.stderr)
+    return new
+
+
 def load_log(path: Path | None = None) -> list[dict]:
-    path = path or LOG
+    path = path or LOG or home_path("trust.json")
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
 
 
@@ -69,9 +91,10 @@ def summary(state: dict[str, dict], log: list[dict]) -> list[dict]:
 
 def reinstate(checkpoint: str, path: Path | None = None) -> dict:
     """Append an owner reinstatement. Always allowed (INV-RG-10)."""
-    path = path or LOG
     if checkpoint not in CHECKPOINTS:
         raise ValueError(f"checkpoint must be one of {', '.join(CHECKPOINTS)}")
+    path = path or LOG or home_path("trust.json", write=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     entry = {"checkpoint": checkpoint, "action": "reinstate",
              "at": dt.datetime.now().isoformat(timespec="seconds")}
     with rolegenie.state_lock(path):

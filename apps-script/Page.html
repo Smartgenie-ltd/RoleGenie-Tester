@@ -79,10 +79,73 @@
         margin-top: 8px;
         font: inherit;
       }
+      .guide {
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin: 0 0 12px;
+        font-size: 15px;
+      }
+      .guide summary {
+        font-weight: 600;
+        min-height: 32px;
+        cursor: pointer;
+      }
+      .guide p,
+      .guide dd {
+        margin: 0 0 8px;
+      }
+      .guide dt {
+        font-weight: 600;
+      }
+      .guide dd {
+        margin-left: 0;
+      }
     </style>
   </head>
   <body>
     <h1>RoleGenie board</h1>
+    <details class="guide">
+      <summary>How to decide</summary>
+      <p>Choose one decision per job, then tap Save. To change it later, tap another and Save.</p>
+      <dl>
+        <dt>Apply</dt>
+        <dd>
+          You would send an application for this job. A reason is required. RoleGenie does not apply
+          for you: the daily run then tries to draft a tailored CV from your approved master CV
+          only, and the card shows it as a draft when it is ready, or as held with the reason. Check
+          it, apply yourself, then tap Already applied (or run
+          <code>python rolegenie.py mark &lt;job&gt; applied</code>).
+        </dd>
+        <dt>Consider</dt>
+        <dd>
+          Not sure yet. A reason is optional. The job stays on your board, below the jobs you have
+          not decided, and no CV is drafted. Decide when you are ready.
+        </dd>
+        <dt>Reject</dt>
+        <dd>
+          You would not apply even with a perfect CV. A reason is required, for example location,
+          pay, seniority, not the work you want, or a hard requirement you cannot meet.
+        </dd>
+        <dt>Already applied</dt>
+        <dd>
+          You applied, through RoleGenie's draft or on your own. A reason is optional. The daily run
+          records it as your application; only applications you mark this way are matched to
+          recruiter replies.
+        </dd>
+      </dl>
+      <p>No decision: The job stays at the top of your board and nothing is drafted.</p>
+      <p>
+        Reading a card: Unmet hard requirements are always listed, whatever the score. A low score
+        is not an automatic Reject: a stretch you can argue for is a fair Apply.
+      </p>
+      <p>
+        Your reasons: Words in your Apply, Reject and Already applied reasons decide which new jobs
+        RoleGenie assesses first. For this, only your latest decision on each job counts, and
+        Consider teaches nothing. Your decisions and ratings never change the fit score on a card.
+      </p>
+    </details>
     <main id="board" data-s="<!--SECRET-->"><!--JOBS--></main>
     <script>
       // Tap a decision, give a reason (required for Apply and Reject), Save. Apply only records your decision.

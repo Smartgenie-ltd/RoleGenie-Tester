@@ -32,6 +32,7 @@ def env(tmp_path, monkeypatch):
     answers.write_text("1. Right to work: yes", encoding="utf-8")
     monkeypatch.setattr(apply, "ANSWERS", answers)
     monkeypatch.setattr(apply, "ROOT", tmp_path)
+    monkeypatch.setenv("ROLEGENIE_HOME", str(tmp_path))   # state and apply locks live in the data folder (BRIEF-072)
     import tailor
     monkeypatch.setattr(tailor, "current_master_sha", lambda cfg: SHA)
     sf = tmp_path / "state.json"

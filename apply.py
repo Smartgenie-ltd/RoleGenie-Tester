@@ -171,7 +171,7 @@ def workflow_master_sha(cfg: dict) -> str | None:
 def prepare_package(uid: str, cfg: dict) -> dict | None:
     """Prepare answer references for owner review; every preparation drops approval."""
     import tailor
-    state_path = ROOT / cfg["output"]["state_file"]
+    state_path = _state_path(cfg)
     e = rolegenie.load_state(state_path).get(uid)
     if e is None or latest_call(e) != "apply":
         return None
@@ -320,13 +320,18 @@ def record(state_path: Path, uid: str, attempt: dict, package: dict | None = Non
     rolegenie.update_state(state_path, change)
 
 
+def _state_path(cfg: dict) -> Path:
+    """The state file, in the data folder like the rest of the product (absolute values are kept)."""
+    return rolegenie.data_dir() / cfg["output"]["state_file"]
+
+
 class Busy(Exception):
     """Another applier run holds this posting."""
 
 
 def _lock_path(uid: str) -> Path:
     import tailor
-    return ROOT / f".applying-{tailor._safe(uid, 120)}.lock"
+    return rolegenie.data_dir() / f".applying-{tailor._safe(uid, 120)}.lock"   # never in the clone
 
 
 def apply_one(uid: str, cfg: dict) -> dict | None:
@@ -337,6 +342,7 @@ def apply_one(uid: str, cfg: dict) -> dict | None:
               file=sys.stderr)
         return None
     lock = _lock_path(uid)
+    lock.parent.mkdir(parents=True, exist_ok=True)
     try:
         fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
@@ -352,7 +358,7 @@ def _apply_locked(uid: str, cfg: dict) -> dict | None:
     if not (cfg.get("apply") or {}).get("enabled"):
         print(f"  {uid}: approved but the apply switch is off (owner-only, docs/HITL.md #11)", file=sys.stderr)
         return None
-    state_path = ROOT / cfg["output"]["state_file"]
+    state_path = _state_path(cfg)
     state = rolegenie.load_state(state_path)
     e = state[uid]
     import tailor
@@ -375,7 +381,7 @@ def _apply_locked(uid: str, cfg: dict) -> dict | None:
 
 def verify(cfg: dict) -> int:
     """Look for each unverified submission's confirmation email (read-only)."""
-    state_path = ROOT / cfg["output"]["state_file"]
+    state_path = _state_path(cfg)
     state = rolegenie.load_state(state_path)
     claude = shutil.which("claude")
     todo = [(u, e) for u, e in state.items()
@@ -410,7 +416,7 @@ def cmd_apply(argv: list[str], cfg: dict) -> int:
     args = ap.parse_args(argv)
     if args.verify:
         return verify(cfg)
-    state = rolegenie.load_state(ROOT / cfg["output"]["state_file"])
+    state = rolegenie.load_state(_state_path(cfg))
     import tailor
     sha = workflow_master_sha(cfg) or ""
     uids = [args.uid] if args.uid else [u for u, e in state.items() if latest_call(e) == "apply"]

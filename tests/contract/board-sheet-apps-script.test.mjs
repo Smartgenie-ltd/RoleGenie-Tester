@@ -5,7 +5,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { loadBoard } from '../fixtures/board/gas-fake.mjs';
 import {
@@ -575,4 +575,106 @@ test('B048 card: Draft badge, Open document link, explicit missing-link and Held
   b = fresh();
   push(b, [row()]);
   assert.doesNotMatch(html(b), /Open document|Draft|Held:/);
+});
+
+// --- BRIEF-068 (CR-rg-decision-guide): the "How to decide" panel and its twin in the tester checklist ---
+const PAGE_SRC = readFileSync(new URL('../../apps-script/Page.html', import.meta.url), 'utf8');
+// the checkout keeps the checklist under packaging/tester/; the tester export ships it at its root
+const TESTING = readFileSync(
+  [
+    new URL('../../packaging/tester/TESTING.md', import.meta.url),
+    new URL('../../TESTING.md', import.meta.url),
+  ].find((u) => existsSync(u)),
+  'utf8',
+);
+const guideOf = (page) => {
+  const m = page.match(/<details class="guide">([\s\S]*?)<\/details>/);
+  assert.ok(m, 'no <details class="guide"> panel');
+  return m[1];
+};
+const plain = (html) =>
+  html
+    .replace(/<\/?code>/g, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+const pageLabels = () => {
+  const m = PAGE_SRC.match(/var LABEL = \{([\s\S]*?)\};/);
+  assert.ok(m, 'no LABEL table in Page.html');
+  return [...m[1].matchAll(/'?([\w-]+)'?:\s*'([^']*)'/g)].map((x) => [x[1], x[2]]);
+};
+const testingSection = () => {
+  const at = TESTING.indexOf('## How to decide on the board');
+  assert.ok(at >= 0, 'TESTING.md has no "How to decide on the board" section');
+  const rest = TESTING.slice(at + 3);
+  const end = rest.indexOf('\n## ');
+  return end < 0 ? rest : rest.slice(0, end);
+};
+
+test('G1: a closed "How to decide" panel sits above the jobs, with nothing that can tap, save or load', () => {
+  const page = seeded().get({ s: SECRET }).content;
+  const at = page.indexOf('<details class="guide">');
+  assert.ok(
+    at >= 0 && at < page.indexOf('<main id="board"'),
+    'panel missing or not above the jobs',
+  );
+  assert.match(page, /<details class="guide">\s*<summary>How to decide<\/summary>/);
+  const open = page.slice(at, page.indexOf('>', at) + 1);
+  assert.doesNotMatch(open, /\sopen/, 'the panel must be closed by default');
+  const g = guideOf(page);
+  assert.doesNotMatch(g, /<(button|script|a|input|textarea|img|link|iframe)\b/i);
+  assert.doesNotMatch(guideOf(PAGE_SRC), /<!--SECRET-->|<!--JOBS-->/);
+  assert.match(PAGE_SRC, /\.guide\s*\{/, 'the panel has its own style');
+});
+
+test('G2: the panel names exactly the four decisions the buttons and the LABEL table use, in the same order', () => {
+  const page = seeded().get({ s: SECRET }).content;
+  const named = [...guideOf(page).matchAll(/<dt>([\s\S]*?)<\/dt>/g)].map((m) => plain(m[1]));
+  const card = page.slice(page.indexOf('data-uid="0f3a9c1e5b7d2a46"'));
+  const buttons = [...card.matchAll(/<button type="button" data-d="([^"]+)">([^<]*)<\/button>/g)];
+  const labels = pageLabels();
+  assert.deepEqual(
+    labels.map(([k]) => k),
+    [...SHEET_DECISIONS],
+  );
+  assert.deepEqual(
+    buttons.map((m) => m[1]),
+    [...SHEET_DECISIONS],
+  );
+  assert.deepEqual(
+    buttons.map((m) => m[2]),
+    labels.map(([, v]) => v),
+  );
+  assert.deepEqual(
+    named,
+    labels.map(([, v]) => v),
+  );
+  assert.equal(named.length, 4);
+});
+
+test('G3: no fifth decision (Archive, Hide) on the page or in the checklist guide', () => {
+  const page = seeded().get({ s: SECRET }).content;
+  for (const text of [PAGE_SRC, page, testingSection()])
+    assert.doesNotMatch(text, /\b(archive|hide)\b/i);
+});
+
+test('G4: the checklist carries the same guide, linked from step 5 with its own box', () => {
+  // Markdown side: drop bold, backticks and bullets only (`<job>` is text there, not a tag)
+  const md = testingSection()
+    .replace(/\*\*|`/g, '')
+    .replace(/^\s*- /gm, ' ')
+    .replace(/\s+/g, ' ');
+  const g = guideOf(PAGE_SRC);
+  const parts = [...g.matchAll(/<(dd|p)>([\s\S]*?)<\/\1>/g)].map((m) => plain(m[2]));
+  assert.ok(parts.length >= 7, 'the panel has its guide text');
+  for (const p of parts) assert.ok(md.includes(p), `TESTING.md lacks: ${p}`);
+  const step5 = TESTING.slice(TESTING.indexOf('**5. Phone board**'), TESTING.indexOf('**6.'));
+  assert.match(step5, /\(#how-to-decide-on-the-board\)/);
+  assert.ok(
+    step5.includes('- [ ] The board\'s "How to decide" panel told me what each decision does.'),
+    'step 5 box missing',
+  );
 });

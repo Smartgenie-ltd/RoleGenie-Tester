@@ -15,6 +15,7 @@ import datetime as dt
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 import docx
@@ -75,19 +76,44 @@ def _safe(text: str, limit: int = 60) -> str:
 
 # Tailored CV file names (CR-rg-tailor-cv-name; mirror of CV_FILE_* / cvFileStem in
 # contracts/rolegenie/domain.ts). Stem <name>_<title>_<board>; the name is the master CV's own:
-# first line, cut at the first "|", stripped; "CV" when empty or holding "@" or a digit.
+# first line, cut at the first "|", stripped; "CV" when empty or holding "@" or any decimal digit;
+# a whole stem that is a Windows reserved device name gets a "CV_" prefix (guard). CR-rg-cv-name-accents: the name keeps Unicode letters, marks and
+# digits (NFC); title and board keep the ASCII `_safe` rule.
 CV_FILE_PREFIX_DEFAULT = "CV"
 CV_FILE_STEM_PARTS = ("name", "title", "board")
 CV_FILE_STEM_LIMITS = {"name": 40, "title": 50, "board": 30}
+CV_FILE_NAME_MAX_BYTES = 120
+CV_FILE_RESERVED_NAMES = frozenset((
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "COM¹", "COM²", "COM³",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", "LPT¹", "LPT²", "LPT³"))
+
+
+def cv_file_name_safe(text: str, limit: int) -> str:
+    """Mirror of cvFileNameSafe: per character, since `re` has no \\p{} and isalnum drops marks."""
+    kept = "".join(c if unicodedata.category(c)[0] in "LMN" else "_" for c in unicodedata.normalize("NFC", text))
+    points = list(re.sub(r"_+", "_", kept).strip("_")[:limit])
+    while len("".join(points).encode("utf-8")) > CV_FILE_NAME_MAX_BYTES:
+        points.pop()
+    return "".join(points)
 
 
 def cv_file_stem(name: str, title: str, board: str) -> str:
     first = re.split(r"\r?\n", name or "")[0].split("|")[0].strip()
-    prefix = "" if re.search(r"[@0-9]", first) else re.sub(r"[^A-Za-z0-9]+", "_", first).strip("_")[:CV_FILE_STEM_LIMITS["name"]]
+    if "@" in first or any(unicodedata.category(c) == "Nd" for c in first):
+        prefix = ""
+    else:
+        prefix = cv_file_name_safe(first, CV_FILE_STEM_LIMITS["name"])
     parts = {"name": prefix or CV_FILE_PREFIX_DEFAULT,
              "title": _safe(title or "", CV_FILE_STEM_LIMITS["title"]),
              "board": _safe(board or "", CV_FILE_STEM_LIMITS["board"])}
-    return "_".join(parts[k] for k in CV_FILE_STEM_PARTS)
+    joined = "_".join(parts[k] for k in CV_FILE_STEM_PARTS)
+    return f"{CV_FILE_PREFIX_DEFAULT}_{joined}" if cv_file_reserved(joined) else joined   # whole-stem guard only
+
+
+def cv_file_reserved(stem: str) -> bool:
+    """Mirror of cvFileReserved: the whole stem is a Windows reserved device name (ASCII case-insensitive)."""
+    return re.sub(r"[a-z]", lambda m: m.group().upper(), stem) in CV_FILE_RESERVED_NAMES
 
 
 def jd_path(uid: str) -> Path:

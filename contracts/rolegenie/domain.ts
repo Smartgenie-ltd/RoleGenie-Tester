@@ -930,7 +930,9 @@ export const MIN_CEILING_TO_TAILOR = 50;
 // master CV gives it (read, never invented: R1; never the owner's: R4): its FIRST line, cut at
 // the first `|`, stripped. When that is empty, or still holds `@` or a digit (contact data or a
 // phone number never goes into a file name), the prefix is the neutral CV_FILE_PREFIX_DEFAULT.
-// Mirrored in tailor.py (cv_file_stem); ASCII rules on both sides.
+// Mirrored in tailor.py (cv_file_stem). CR-rg-cv-name-accents: the name keeps its own letters
+// (Unicode letters, marks and digits, NFC), so José stays José; any decimal digit in any script
+// still gives CV. Title and board keep the ASCII rule (cvFileSafe).
 export const CV_FILE_PREFIX_DEFAULT = 'CV';
 export const CV_FILE_STEM_PARTS = ['name', 'title', 'board'] as const;
 export const CV_FILE_STEM_LIMITS = { name: 40, title: 50, board: 30 } as const;
@@ -944,11 +946,75 @@ export function cvFileSafe(text: string, limit: number): string {
     .slice(0, limit);
 }
 
+// The name part's UTF-8 byte cap: with title, board, two `_` and the longest suffix
+// (`_Alignment_Report.md`, 20 bytes) a file name stays within 222 bytes, under Linux's 255-byte
+// and Windows's 255-unit limits. An ASCII name (at most 40 bytes) never reaches it.
+export const CV_FILE_NAME_MAX_BYTES = 120;
+// Windows reserved device names (compared ASCII case-insensitively). The rule guards the whole
+// stem only (co-arch ruling, BRIEF-073 attempt 2): a name that is a reserved word is kept as
+// written ("Con" gives Con_...), since the joined stem always carries `_<title>_<board>`.
+export const CV_FILE_RESERVED_NAMES = [
+  'CON',
+  'PRN',
+  'AUX',
+  'NUL',
+  'COM1',
+  'COM2',
+  'COM3',
+  'COM4',
+  'COM5',
+  'COM6',
+  'COM7',
+  'COM8',
+  'COM9',
+  'COM¹',
+  'COM²',
+  'COM³',
+  'LPT1',
+  'LPT2',
+  'LPT3',
+  'LPT4',
+  'LPT5',
+  'LPT6',
+  'LPT7',
+  'LPT8',
+  'LPT9',
+  'LPT¹',
+  'LPT²',
+  'LPT³',
+] as const;
+
+/** The name part's file-safe rule: NFC; runs of anything but Unicode letters, marks and digits
+ *  (so every path separator, Windows-forbidden character, control character, space and dot)
+ *  become `_`, trimmed of `_`; cut to `limit` code points, then to CV_FILE_NAME_MAX_BYTES of
+ *  UTF-8 over whole code points (no re-trim after the cut, as before). May be empty. */
+export function cvFileNameSafe(text: string, limit: number): string {
+  const kept = text
+    .normalize('NFC')
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, '_')
+    .replace(/^_+|_+$/g, '');
+  const points = Array.from(kept).slice(0, limit);
+  // UTF-8 length of one code point (no TextEncoder in the contract's TypeScript lib).
+  const bytes = (c: string): number => {
+    const cp = c.codePointAt(0) ?? 0;
+    return cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+  };
+  let size = points.reduce((n, c) => n + bytes(c), 0);
+  while (size > CV_FILE_NAME_MAX_BYTES) size -= bytes(points.pop() ?? '');
+  return points.join('');
+}
+
 /** The name prefix of a tailored CV's file names, from the master CV's name. */
 export function cvFilePrefix(masterName: string): string {
   const first = (masterName.split(/\r?\n/)[0] ?? '').split('|')[0]?.trim() ?? '';
-  if (/[@0-9]/.test(first)) return CV_FILE_PREFIX_DEFAULT;
-  return cvFileSafe(first, CV_FILE_STEM_LIMITS.name) || CV_FILE_PREFIX_DEFAULT;
+  if (/[@]|\p{Nd}/u.test(first)) return CV_FILE_PREFIX_DEFAULT;
+  return cvFileNameSafe(first, CV_FILE_STEM_LIMITS.name) || CV_FILE_PREFIX_DEFAULT;
+}
+
+/** True when a whole stem is a Windows reserved device name (ASCII case-insensitive). */
+export function cvFileReserved(stem: string): boolean {
+  const upper = stem.replace(/[a-z]/g, (c) => c.toUpperCase());
+  return (CV_FILE_RESERVED_NAMES as readonly string[]).includes(upper);
 }
 
 /** The shared stem of a tailored CV's docx, PDF and alignment report. Title and board keep
@@ -959,7 +1025,10 @@ export function cvFileStem(masterName: string, title: string, board: string): st
     title: cvFileSafe(title, CV_FILE_STEM_LIMITS.title) || 'x',
     board: cvFileSafe(board, CV_FILE_STEM_LIMITS.board) || 'x',
   };
-  return CV_FILE_STEM_PARTS.map((p) => parts[p]).join('_');
+  const stem = CV_FILE_STEM_PARTS.map((p) => parts[p]).join('_');
+  // Guard on the whole stem (co-arch ruling, attempt 2): the joined stem cannot be reserved
+  // today, but if it ever were, the neutral prefix keeps the file creatable on Windows.
+  return cvFileReserved(stem) ? `${CV_FILE_PREFIX_DEFAULT}_${stem}` : stem;
 }
 
 // Verbs that turn a capability into a delivery claim (CR-rg-knowledge-only).

@@ -20,13 +20,23 @@ import tempfile
 from pathlib import Path
 
 import rolegenie
+import trust
 
 ROOT = Path(__file__).resolve().parent
-BRIEF_DIR = ROOT / "briefs"
-LATEST = BRIEF_DIR / "latest.json"
 SEND_TOOL = "mcp__claude_ai_Gmail__send_message"
 TOOL_LOADER = "ToolSearch"
 SECTIONS = ("Needs you", "New since the last brief", "Waiting for your decision")
+
+
+def brief_dir(write: bool = False) -> Path:
+    """The briefs folder, in the data folder (CR-rg-clone-stays-clean); see trust.home_path."""
+    return trust.home_path("briefs", write)
+
+
+def __getattr__(name: str):
+    if name == "LATEST":                      # board.py reads brief.LATEST; resolved per call, read-only
+        return brief_dir() / "latest.json"
+    raise AttributeError(f"module 'brief' has no attribute {name!r}")
 
 
 def _last_decision(e: dict) -> str | None:
@@ -76,7 +86,6 @@ def build(state: dict[str, dict], since: str, board_url: str, now: str) -> tuple
         if len(rows) > 25:
             out.append(f"  ...and {len(rows) - 25} more on the board.")
         out.append("")
-    import trust
     out.append(trust.brief_line(trust.summary(state, trust.load_log())))
     counts = {"needs": len(needs), "new": len(new), "waiting": len(waiting)}
     return "\n".join(out).rstrip() + "\n", counts
@@ -150,8 +159,10 @@ def cmd_brief(argv: list[str], cfg: dict) -> int:
     ap.add_argument("--no-send", action="store_true", help="save it for the board but don't email it")
     args = ap.parse_args(argv)
     bc = cfg.get("brief", {})
-    state = rolegenie.load_state(ROOT / cfg["output"]["state_file"])
-    prev = json.loads(LATEST.read_text(encoding="utf-8")) if LATEST.exists() else {}
+    state = rolegenie.load_state(rolegenie.data_dir() / cfg["output"]["state_file"])
+    out = brief_dir(write=True)               # the one-time move happens before anything is written
+    latest = out / "latest.json"
+    prev = json.loads(latest.read_text(encoding="utf-8")) if latest.exists() else {}
     now = dt.datetime.now().isoformat(timespec="seconds")
     text, counts = build(state, prev.get("at", ""), bc.get("board_url", "http://127.0.0.1:8765/"), now)
 
@@ -159,9 +170,9 @@ def cmd_brief(argv: list[str], cfg: dict) -> int:
     if bc.get("send") and not args.no_send:
         subject = f"RoleGenie: {counts['new']} new, {counts['needs']} need you, {counts['waiting']} waiting"
         problems = send(text, subject, bc["to"])
-    BRIEF_DIR.mkdir(exist_ok=True)
-    (BRIEF_DIR / f"{now[:10]}.md").write_text(text, encoding="utf-8")
-    LATEST.write_text(json.dumps({"at": now, "text": text, "counts": counts,
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{now[:10]}.md").write_text(text, encoding="utf-8")
+    latest.write_text(json.dumps({"at": now, "text": text, "counts": counts,
                                   "emailed": bool(bc.get("send") and not args.no_send and not problems),
                                   "email_problems": problems}, indent=2), encoding="utf-8")
     print(text)
